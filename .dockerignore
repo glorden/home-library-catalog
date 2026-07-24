@@ -6,7 +6,6 @@ __pycache__
 .ruff_cache
 tests
 Makefile
-README.md
 ARCHITECTURE.md
 DEPLOY.md
 PROCESS.md

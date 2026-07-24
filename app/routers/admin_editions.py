@@ -1,5 +1,4 @@
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +10,7 @@ from sqlmodel import select
 
 from app.dependencies import SessionDep
 from app.models import Copy, Edition
+from app.timeutil import utcnow
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -113,7 +113,7 @@ def update_edition(edition_id: int, data: EditionFormDep, session: SessionDep):
         raise HTTPException(status_code=404)
     for field, value in asdict(data).items():
         setattr(edition, field, value)
-    edition.updated_at = datetime.utcnow()
+    edition.updated_at = utcnow()
     session.add(edition)
     session.commit()
     return RedirectResponse(f"/admin/editions/{edition.id}", status_code=303)

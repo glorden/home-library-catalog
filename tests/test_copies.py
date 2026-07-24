@@ -4,7 +4,7 @@ from app.models import Copy
 
 
 def _create_edition(db_client, title: str = "Издание для экземпляров") -> str:
-    response = db_client.post("/admin/editions", data={"title": title})
+    response = db_client.post("/admin/editions", data={"title": title}, follow_redirects=False)
     return response.headers["location"].rsplit("/", 1)[-1]
 
 
@@ -14,6 +14,7 @@ def test_create_copy_appears_on_edition_page(db_client):
     response = db_client.post(
         f"/admin/editions/{edition_id}/copies",
         data={"inventory_code": "INV-001", "condition": "good"},
+        follow_redirects=False,
     )
     assert response.status_code == 303
 
@@ -30,6 +31,7 @@ def test_acquisition_price_and_storage_never_in_public_page_html(db_client):
             "acquisition_price": "12345.67",
             "storage_location": "Секретный шкаф",
         },
+        follow_redirects=False,
     )
 
     detail_response = db_client.get(f"/admin/editions/{edition_id}")
@@ -40,11 +42,13 @@ def test_acquisition_price_and_storage_never_in_public_page_html(db_client):
 def test_delete_copy(db_client, session):
     edition_id = _create_edition(db_client)
     create_response = db_client.post(
-        f"/admin/editions/{edition_id}/copies", data={"inventory_code": "TO-DELETE"}
+        f"/admin/editions/{edition_id}/copies",
+        data={"inventory_code": "TO-DELETE"},
+        follow_redirects=False,
     )
     assert create_response.status_code == 303
 
-    copy = session.exec(select(Copy).where(Copy.edition_id == edition_id)).one()
+    copy = session.exec(select(Copy).where(Copy.edition_id == int(edition_id))).one()
 
     delete_response = db_client.delete(f"/admin/copies/{copy.id}")
     assert delete_response.status_code == 200

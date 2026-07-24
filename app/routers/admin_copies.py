@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Annotated
@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.dependencies import SessionDep
 from app.models import Copy, Edition
+from app.timeutil import utcnow
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -106,7 +107,7 @@ def update_copy(copy_id: int, data: CopyFormDep, session: SessionDep):
         raise HTTPException(status_code=404)
     for field, value in asdict(data).items():
         setattr(copy, field, value)
-    copy.updated_at = datetime.utcnow()
+    copy.updated_at = utcnow()
     session.add(copy)
     session.commit()
     return RedirectResponse(f"/admin/editions/{copy.edition_id}", status_code=303)

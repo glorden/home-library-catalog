@@ -5,6 +5,8 @@ from enum import StrEnum
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
 
+from app.timeutil import utcnow
+
 
 class Condition(StrEnum):
     MINT = "mint"
@@ -34,5 +36,5 @@ class Copy(SQLModel, table=True):
     public_notes: str | None = Field(default=None)
     has_autograph: bool = Field(default=False)
     has_ex_libris: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)

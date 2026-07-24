@@ -4,6 +4,8 @@ from enum import StrEnum
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
 
+from app.timeutil import utcnow
+
 
 class PhotoKind(StrEnum):
     COVER = "cover"
@@ -33,4 +35,4 @@ class Photo(SQLModel, table=True):
     width: int | None = Field(default=None)
     height: int | None = Field(default=None)
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)

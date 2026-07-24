@@ -2,6 +2,8 @@ from datetime import datetime
 
 from sqlmodel import Field, SQLModel
 
+from app.timeutil import utcnow
+
 
 class Edition(SQLModel, table=True):
     """Библиографическая запись издания."""
@@ -22,5 +24,5 @@ class Edition(SQLModel, table=True):
     edition_statement: str | None = Field(default=None, max_length=300)
     physical_description: str | None = Field(default=None, max_length=300)
     description: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)

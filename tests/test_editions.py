@@ -6,6 +6,7 @@ def test_create_edition_then_appears_in_list(db_client):
             "authors": "Булгаков М. А.",
             "publication_year": "1967",
         },
+        follow_redirects=False,
     )
     assert response.status_code == 303
 
@@ -16,11 +17,15 @@ def test_create_edition_then_appears_in_list(db_client):
 
 
 def test_edit_edition_updates_fields(db_client):
-    create_response = db_client.post("/admin/editions", data={"title": "Исходное название"})
+    create_response = db_client.post(
+        "/admin/editions", data={"title": "Исходное название"}, follow_redirects=False
+    )
     edition_id = create_response.headers["location"].rsplit("/", 1)[-1]
 
     update_response = db_client.post(
-        f"/admin/editions/{edition_id}", data={"title": "Новое название"}
+        f"/admin/editions/{edition_id}",
+        data={"title": "Новое название"},
+        follow_redirects=False,
     )
     assert update_response.status_code == 303
 
@@ -30,7 +35,9 @@ def test_edit_edition_updates_fields(db_client):
 
 
 def test_delete_edition_without_copies(db_client):
-    create_response = db_client.post("/admin/editions", data={"title": "Удалить меня"})
+    create_response = db_client.post(
+        "/admin/editions", data={"title": "Удалить меня"}, follow_redirects=False
+    )
     edition_id = create_response.headers["location"].rsplit("/", 1)[-1]
 
     delete_response = db_client.delete(f"/admin/editions/{edition_id}")
@@ -41,9 +48,11 @@ def test_delete_edition_without_copies(db_client):
 
 
 def test_delete_edition_with_copies_is_blocked(db_client):
-    create_response = db_client.post("/admin/editions", data={"title": "С экземпляром"})
+    create_response = db_client.post(
+        "/admin/editions", data={"title": "С экземпляром"}, follow_redirects=False
+    )
     edition_id = create_response.headers["location"].rsplit("/", 1)[-1]
-    db_client.post(f"/admin/editions/{edition_id}/copies", data={})
+    db_client.post(f"/admin/editions/{edition_id}/copies", data={}, follow_redirects=False)
 
     delete_response = db_client.delete(f"/admin/editions/{edition_id}")
     assert delete_response.status_code == 409
