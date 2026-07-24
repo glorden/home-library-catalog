@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="mx-auto max-w-3xl p-6">
+    <div class="mb-2 flex items-center justify-between">
+        <h1 class="text-xl font-semibold">{{ edition.title }}</h1>
+        <a href="/admin/editions/{{ edition.id }}/edit" class="text-sm text-indigo-700 hover:underline">
+            Редактировать
+        </a>
+    </div>
+    <dl class="mb-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-700">
+        {% if edition.authors %}<dt class="text-gray-500">Автор(ы)</dt><dd>{{ edition.authors }}</dd>{% endif %}
+        {% if edition.publisher %}<dt class="text-gray-500">Издательство</dt><dd>{{ edition.publisher }}</dd>{% endif %}
+        {% if edition.publication_year or edition.publication_year_text %}
+            <dt class="text-gray-500">Год</dt>
+            <dd>{{ edition.publication_year or edition.publication_year_text }}</dd>
+        {% endif %}
+        {% if edition.isbn %}<dt class="text-gray-500">ISBN</dt><dd>{{ edition.isbn }}</dd>{% endif %}
+    </dl>
+
+    <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Экземпляры</h2>
+        <a href="/admin/editions/{{ edition.id }}/copies/new"
+           class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700">
+            + Добавить экземпляр
+        </a>
+    </div>
+    <ul id="copies-list" class="divide-y">
+        {% for copy in copies %}
+        {% include "admin/partials/copy_row.html" %}
+        {% else %}
+        <li class="py-3 text-gray-500">Пока нет ни одного экземпляра.</li>
+        {% endfor %}
+    </ul>
+    <p class="mt-6">
+        <a href="/admin/editions" class="text-sm text-gray-600 hover:underline">← Ко всем изданиям</a>
+    </p>
+</main>
+{% endblock %}

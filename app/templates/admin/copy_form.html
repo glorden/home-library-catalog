@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="mx-auto max-w-2xl p-6">
+    <h1 class="mb-1 text-xl font-semibold">
+        {{ "Редактировать экземпляр" if copy else "Новый экземпляр" }}
+    </h1>
+    <p class="mb-4 text-sm text-gray-500">{{ edition.title }}</p>
+    <form method="post"
+          action="{{ '/admin/copies/' ~ copy.id if copy else '/admin/editions/' ~ edition.id ~ '/copies' }}"
+          class="space-y-3">
+        <label class="block">
+            <span class="text-sm text-gray-600">Инвентарный номер</span>
+            <input name="inventory_code" value="{{ copy.inventory_code if copy else '' }}"
+                   class="mt-1 w-full rounded border-gray-300">
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Состояние</span>
+            <select name="condition" class="mt-1 w-full rounded border-gray-300">
+                <option value="">—</option>
+                {% for value, label in [("mint", "Отличное"), ("good", "Хорошее"), ("fair", "Среднее"), ("poor", "Плохое"), ("damaged", "Повреждено")] %}
+                <option value="{{ value }}" {% if copy and copy.condition == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+                <span class="text-sm text-gray-600">Дата приобретения</span>
+                <input name="acquisition_date" type="date"
+                       value="{{ copy.acquisition_date if copy else '' }}"
+                       class="mt-1 w-full rounded border-gray-300">
+            </label>
+            <label class="block">
+                <span class="text-sm text-gray-600">Цена приобретения</span>
+                <input name="acquisition_price" type="number" step="0.01"
+                       value="{{ copy.acquisition_price if copy else '' }}"
+                       class="mt-1 w-full rounded border-gray-300">
+                <span class="text-xs text-gray-400">Никогда не показывается публично</span>
+            </label>
+        </div>
+        <label class="block">
+            <span class="text-sm text-gray-600">Источник приобретения</span>
+            <input name="acquisition_source" value="{{ copy.acquisition_source if copy else '' }}"
+                   class="mt-1 w-full rounded border-gray-300">
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Место хранения</span>
+            <input name="storage_location" value="{{ copy.storage_location if copy else '' }}"
+                   class="mt-1 w-full rounded border-gray-300">
+            <span class="text-xs text-gray-400">Никогда не показывается публично</span>
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Публичная заметка</span>
+            <textarea name="public_notes" rows="2"
+                      class="mt-1 w-full rounded border-gray-300">{{ copy.public_notes if copy else '' }}</textarea>
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Личные заметки</span>
+            <textarea name="notes" rows="2"
+                      class="mt-1 w-full rounded border-gray-300">{{ copy.notes if copy else '' }}</textarea>
+        </label>
+        <div class="flex gap-4">
+            <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input type="checkbox" name="has_autograph" value="true"
+                       {% if copy and copy.has_autograph %}checked{% endif %}>
+                Есть автограф
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input type="checkbox" name="has_ex_libris" value="true"
+                       {% if copy and copy.has_ex_libris %}checked{% endif %}>
+                Есть экслибрис
+            </label>
+        </div>
+        <div class="flex gap-2 pt-2">
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                Сохранить
+            </button>
+            <a href="/admin/editions/{{ edition.id }}" class="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100">
+                Отмена
+            </a>
+        </div>
+    </form>
+</main>
+{% endblock %}

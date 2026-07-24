@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="mx-auto max-w-3xl p-6">
+    <div class="mb-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold">Издания</h1>
+        <a href="/admin/editions/new"
+           class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700">
+            + Добавить издание
+        </a>
+    </div>
+    <table class="w-full text-left text-sm">
+        <thead>
+            <tr class="border-b text-gray-500">
+                <th class="py-2">Название</th>
+                <th class="py-2">Автор(ы)</th>
+                <th class="py-2">Год</th>
+                <th class="py-2"></th>
+            </tr>
+        </thead>
+        <tbody id="editions-table-body">
+            {% for edition in editions %}
+            {% include "admin/partials/edition_row.html" %}
+            {% else %}
+            <tr><td colspan="4" class="py-4 text-gray-500">Пока нет ни одного издания.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock %}

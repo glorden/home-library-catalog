@@ -1,0 +1,18 @@
+<tr id="edition-row-{{ edition.id }}" class="border-b">
+    <td class="py-2">
+        <a href="/admin/editions/{{ edition.id }}" class="text-indigo-700 hover:underline">{{ edition.title }}</a>
+    </td>
+    <td class="py-2">{{ edition.authors or "—" }}</td>
+    <td class="py-2">{{ edition.publication_year or edition.publication_year_text or "—" }}</td>
+    <td class="py-2 text-right">
+        <button
+            class="text-red-600 hover:underline"
+            hx-delete="/admin/editions/{{ edition.id }}"
+            hx-target="#edition-row-{{ edition.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Удалить издание «{{ edition.title }}»?"
+        >
+            Удалить
+        </button>
+    </td>
+</tr>

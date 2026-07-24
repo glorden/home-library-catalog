@@ -4,6 +4,7 @@ __pycache__/
 venv/
 bin/
 node_modules/
+.claude/
 
 # сгенерированные/скачанные фронтенд-артефакты (см. Makefile: vendor, css)
 app/static/css/output.css

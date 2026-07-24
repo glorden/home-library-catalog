@@ -34,4 +34,6 @@ jobs:
           ruff check app tests
           ruff format --check app tests
       - name: Test
+        env:
+          DATABASE_URL: postgresql+psycopg://library:library@localhost:5432/library
         run: pytest
