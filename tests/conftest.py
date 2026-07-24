@@ -30,6 +30,12 @@ def _ensure_test_database_exists() -> None:
     admin_engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def _isolated_photo_storage(tmp_path, monkeypatch):
+    """Фото тестов пишутся во временную папку, а не в реальный data/photos."""
+    monkeypatch.setattr(settings, "photo_storage_root", str(tmp_path))
+
+
 @pytest.fixture()
 def client() -> TestClient:
     """Клиент без БД — для маршрутов, не трогающих базу (healthz, hello-world)."""

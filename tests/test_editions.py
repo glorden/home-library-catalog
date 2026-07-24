@@ -34,6 +34,16 @@ def test_edit_edition_updates_fields(db_client):
     assert "Исходное название" not in detail_response.text
 
 
+def test_edit_form_does_not_render_none_for_empty_fields(db_client):
+    create_response = db_client.post(
+        "/admin/editions", data={"title": "Минимальное издание"}, follow_redirects=False
+    )
+    edition_id = create_response.headers["location"].rsplit("/", 1)[-1]
+
+    edit_response = db_client.get(f"/admin/editions/{edition_id}/edit")
+    assert "None" not in edit_response.text
+
+
 def test_delete_edition_without_copies(db_client):
     create_response = db_client.post(
         "/admin/editions", data={"title": "Удалить меня"}, follow_redirects=False

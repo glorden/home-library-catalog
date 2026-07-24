@@ -7,10 +7,22 @@
     <p class="mb-4 text-sm text-gray-500">{{ edition.title }}</p>
     <form method="post"
           action="{{ '/admin/copies/' ~ copy.id if copy else '/admin/editions/' ~ edition.id ~ '/copies' }}"
+          enctype="multipart/form-data"
           class="space-y-3">
         <label class="block">
+            <span class="text-sm text-gray-600">Фото обложки</span>
+            {% if cover_photo %}
+            <img src="/media/photos/{{ cover_photo.id }}" alt="Текущая обложка"
+                 class="mb-2 mt-1 h-32 w-32 rounded object-cover">
+            <p class="mb-1 text-xs text-gray-400">Загрузка нового файла заменит текущую обложку.</p>
+            {% endif %}
+            <input type="file" name="cover_photo" accept="image/*" capture="environment"
+                   class="mt-1 w-full text-sm">
+        </label>
+        <label class="block">
             <span class="text-sm text-gray-600">Инвентарный номер</span>
-            <input name="inventory_code" value="{{ copy.inventory_code if copy else '' }}"
+            <input name="inventory_code"
+                   value="{{ copy.inventory_code if copy and copy.inventory_code is not none else '' }}"
                    class="mt-1 w-full rounded border-gray-300">
         </label>
         <label class="block">
@@ -26,37 +38,39 @@
             <label class="block">
                 <span class="text-sm text-gray-600">Дата приобретения</span>
                 <input name="acquisition_date" type="date"
-                       value="{{ copy.acquisition_date if copy else '' }}"
+                       value="{{ copy.acquisition_date if copy and copy.acquisition_date is not none else '' }}"
                        class="mt-1 w-full rounded border-gray-300">
             </label>
             <label class="block">
                 <span class="text-sm text-gray-600">Цена приобретения</span>
                 <input name="acquisition_price" type="number" step="0.01"
-                       value="{{ copy.acquisition_price if copy else '' }}"
+                       value="{{ copy.acquisition_price if copy and copy.acquisition_price is not none else '' }}"
                        class="mt-1 w-full rounded border-gray-300">
                 <span class="text-xs text-gray-400">Никогда не показывается публично</span>
             </label>
         </div>
         <label class="block">
             <span class="text-sm text-gray-600">Источник приобретения</span>
-            <input name="acquisition_source" value="{{ copy.acquisition_source if copy else '' }}"
+            <input name="acquisition_source"
+                   value="{{ copy.acquisition_source if copy and copy.acquisition_source is not none else '' }}"
                    class="mt-1 w-full rounded border-gray-300">
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Место хранения</span>
-            <input name="storage_location" value="{{ copy.storage_location if copy else '' }}"
+            <input name="storage_location"
+                   value="{{ copy.storage_location if copy and copy.storage_location is not none else '' }}"
                    class="mt-1 w-full rounded border-gray-300">
             <span class="text-xs text-gray-400">Никогда не показывается публично</span>
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Публичная заметка</span>
             <textarea name="public_notes" rows="2"
-                      class="mt-1 w-full rounded border-gray-300">{{ copy.public_notes if copy else '' }}</textarea>
+                      class="mt-1 w-full rounded border-gray-300">{{ copy.public_notes if copy and copy.public_notes is not none else '' }}</textarea>
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Личные заметки</span>
             <textarea name="notes" rows="2"
-                      class="mt-1 w-full rounded border-gray-300">{{ copy.notes if copy else '' }}</textarea>
+                      class="mt-1 w-full rounded border-gray-300">{{ copy.notes if copy and copy.notes is not none else '' }}</textarea>
         </label>
         <div class="flex gap-4">
             <label class="flex items-center gap-2 text-sm text-gray-600">

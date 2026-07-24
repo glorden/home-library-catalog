@@ -39,6 +39,19 @@ def test_acquisition_price_and_storage_never_in_public_page_html(db_client):
     assert "Секретный шкаф" not in detail_response.text
 
 
+def test_edit_form_does_not_render_none_for_empty_fields(db_client):
+    edition_id = _create_edition(db_client)
+    create_response = db_client.post(
+        f"/admin/editions/{edition_id}/copies",
+        data={"inventory_code": "MINIMAL"},
+        follow_redirects=False,
+    )
+    copy_id = create_response.headers["location"].rsplit("/", 1)[-1]
+
+    edit_response = db_client.get(f"/admin/copies/{copy_id}/edit")
+    assert "None" not in edit_response.text
+
+
 def test_delete_copy(db_client, session):
     edition_id = _create_edition(db_client)
     create_response = db_client.post(

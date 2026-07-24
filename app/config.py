@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "Каталог домашней библиотеки"
     debug: bool = False
     database_url: str = "postgresql+psycopg://library:library@localhost:5432/library"
+    photo_storage_root: str = "data/photos"
 
 
 settings = Settings()

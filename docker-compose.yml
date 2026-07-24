@@ -23,13 +23,26 @@ services:
       dockerfile: docker/app/Dockerfile
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./app:/code/app
+      # Точечно, а не всю ./app:/code/app — иначе bind mount перекрывает
+      # app/static/{css/output.css,js/htmx.min.js}, собранные ВНУТРИ образа
+      # (на хосте их либо нет, либо лежит протухшая версия из другой сборки).
+      - ./app/main.py:/code/app/main.py
+      - ./app/config.py:/code/app/config.py
+      - ./app/database.py:/code/app/database.py
+      - ./app/dependencies.py:/code/app/dependencies.py
+      - ./app/timeutil.py:/code/app/timeutil.py
+      - ./app/models:/code/app/models
+      - ./app/routers:/code/app/routers
+      - ./app/services:/code/app/services
+      - ./app/templates:/code/app/templates
       - ./alembic:/code/alembic
+      - ./data/photos:/code/data/photos
     ports:
       - "8000:8000"
     environment:
       DEBUG: "true"
       DATABASE_URL: "postgresql+psycopg://library:library@db:5432/library"
+      PHOTO_STORAGE_ROOT: "data/photos"
     depends_on:
       db:
         condition: service_healthy

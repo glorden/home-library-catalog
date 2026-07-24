@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from app.dependencies import SessionDep
-from app.models import Copy, Edition
+from app.models import Copy, Edition, Photo
 from app.timeutil import utcnow
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -93,8 +93,17 @@ def edition_detail(edition_id: int, request: Request, session: SessionDep):
     if edition is None:
         raise HTTPException(status_code=404)
     copies = session.exec(select(Copy).where(Copy.edition_id == edition_id)).all()
+    cover_photos = {}
+    if copies:
+        copy_ids = [copy.id for copy in copies]
+        photos = session.exec(
+            select(Photo).where(Photo.copy_id.in_(copy_ids), Photo.kind == "cover")
+        ).all()
+        cover_photos = {photo.copy_id: photo for photo in photos}
     return templates.TemplateResponse(
-        request, "admin/edition_detail.html", {"edition": edition, "copies": copies}
+        request,
+        "admin/edition_detail.html",
+        {"edition": edition, "copies": copies, "cover_photos": cover_photos},
     )
 
 
