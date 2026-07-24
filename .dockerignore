@@ -1,0 +1,16 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+tests
+Makefile
+README.md
+ARCHITECTURE.md
+DEPLOY.md
+PROCESS.md
+idea.md
+.env
+data
+bin
