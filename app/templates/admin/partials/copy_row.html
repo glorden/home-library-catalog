@@ -1,0 +1,18 @@
+<li id="copy-row-{{ copy.id }}" class="flex items-center justify-between py-3">
+    <div>
+        <span class="font-medium">{{ copy.inventory_code or ("Экземпляр #" ~ copy.id) }}</span>
+        {% if copy.condition %}<span class="ml-2 text-sm text-gray-500">{{ copy.condition }}</span>{% endif %}
+    </div>
+    <div class="flex gap-3 text-sm">
+        <a href="/admin/copies/{{ copy.id }}/edit" class="text-indigo-700 hover:underline">Редактировать</a>
+        <button
+            class="text-red-600 hover:underline"
+            hx-delete="/admin/copies/{{ copy.id }}"
+            hx-target="#copy-row-{{ copy.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Удалить этот экземпляр?"
+        >
+            Удалить
+        </button>
+    </div>
+</li>

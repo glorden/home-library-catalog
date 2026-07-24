@@ -7,7 +7,11 @@
 ## Статус
 
 - [x] Шаг 1 — каркас репозитория, Docker, CI
-- [ ] Шаг 2 — модель данных и CRUD
+- [ ] Шаг 2 — модель данных и CRUD (код написан: модели, роуты, шаблоны,
+      Alembic-обвязка; структура схемы проверена через `SQLModel.metadata` без
+      подключения к БД. Реальная миграция и прогон CRUD против настоящего
+      Postgres — после установки Docker/Postgres, миграция ещё не
+      сгенерирована)
 - [ ] Шаг 3 — фото
 - [ ] Шаг 4 — AI-извлечение
 - [ ] Шаг 5 — аутентификация и витрина
@@ -68,7 +72,7 @@ home-library-catalog/
 - Без нативных Postgres ENUM — везде `varchar` + Python `enum.Enum` на уровне
   приложения (ENUM-типы болезненно менять миграциями).
 
-## Модель данных (шаги 2, 4, 5)
+## Модель данных (шаги 2, 4, 5, 6)
 
 **`users`** — ровно одна строка, создаётся CLI, регистрации нет:
 `id, email, password_hash (Argon2id), last_login_at, created_at/updated_at`.
@@ -80,21 +84,25 @@ display_name, api_key_encrypted (Fernet), base_url, model_name, is_active`
 (+ частичный уникальный индекс: не более одного активного провайдера на
 пользователя).
 
-**`editions`** (библиографическая запись):
+**`editions`** (библиографическая запись), базовые поля — шаг 2:
 `id, title, subtitle, authors (свободный текст — см. риски), original_title,
 publisher, publication_year (smallint), publication_year_text ("1930-е",
 "б.г."), isbn (индекс), language, series, edition_statement,
-physical_description, description, dedup_fingerprint (индекс),
-search_vector (generated tsvector, GIN, 'russian')`.
+physical_description, description, created_at, updated_at`.
+Отдельной миграцией на шаге 6 добавляются `dedup_fingerprint (индекс)` и
+`search_vector (generated tsvector, GIN, 'russian')` — колонки не нужны раньше
+самой функциональности поиска/дедупа, поэтому не создаются заранее.
 
-**`copies`** (физический экземпляр):
+**`copies`** (физический экземпляр), базовые поля — шаг 2:
 `id, edition_id (FK, ON DELETE RESTRICT), inventory_code, condition,
 acquisition_date, acquisition_source,
 acquisition_price (ВСЕГДА приватно, никогда не в публичном выводе),
 storage_location (ВСЕГДА приватно), notes (приватно по умолчанию),
 public_notes (отдельное поле для явно публичной заметки), has_autograph,
-has_ex_libris, is_public (default TRUE — opt-out, решение принято
-осознанно)`.
+has_ex_libris, created_at, updated_at`.
+Отдельной миграцией на шаге 5 добавляется `is_public (default TRUE — opt-out,
+решение принято осознанно)` — вместе с auth, поскольку до появления логина
+разделять публичное/приватное не от кого.
 
 **`photos`**:
 `id, copy_id (FK, ON DELETE CASCADE — файл с диска сервис удаляет сам, каскад
