@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     debug: bool = False
     database_url: str = "postgresql+psycopg://library:library@localhost:5432/library"
     photo_storage_root: str = "data/photos"
+    settings_encryption_key: str | None = None
+    enable_draft_cleanup_loop: bool = True
 
 
 settings = Settings()

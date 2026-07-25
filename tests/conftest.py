@@ -1,4 +1,5 @@
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine as create_sa_engine
 from sqlalchemy import text
@@ -34,6 +35,14 @@ def _ensure_test_database_exists() -> None:
 def _isolated_photo_storage(tmp_path, monkeypatch):
     """Фото тестов пишутся во временную папку, а не в реальный data/photos."""
     monkeypatch.setattr(settings, "photo_storage_root", str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
+def _test_settings_extras(monkeypatch):
+    """Свежий ключ шифрования на каждый тест + отключаем фоновую очистку
+    черновиков (не нужна в тестах и мешала бы TestClient корректно завершаться)."""
+    monkeypatch.setattr(settings, "settings_encryption_key", Fernet.generate_key().decode())
+    monkeypatch.setattr(settings, "enable_draft_cleanup_loop", False)
 
 
 @pytest.fixture()

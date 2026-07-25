@@ -33,6 +33,7 @@ services:
       - ./app/timeutil.py:/code/app/timeutil.py
       - ./app/models:/code/app/models
       - ./app/routers:/code/app/routers
+      - ./app/schemas:/code/app/schemas
       - ./app/services:/code/app/services
       - ./app/templates:/code/app/templates
       - ./alembic:/code/alembic
@@ -43,6 +44,9 @@ services:
       DEBUG: "true"
       DATABASE_URL: "postgresql+psycopg://library:library@db:5432/library"
       PHOTO_STORAGE_ROOT: "data/photos"
+      # Из окружения хоста (или корневого .env, который docker compose читает
+      # сам, отдельно от app/config.py) — реальный секрет в compose-файл не кладём.
+      SETTINGS_ENCRYPTION_KEY: "${SETTINGS_ENCRYPTION_KEY:-}"
     depends_on:
       db:
         condition: service_healthy

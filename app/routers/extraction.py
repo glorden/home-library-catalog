@@ -1,0 +1,102 @@
+import secrets
+from dataclasses import asdict
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlmodel import Session
+
+from app.dependencies import SessionDep
+from app.models import Copy, Edition
+from app.routers.admin_copies import attach_cover_photo
+from app.routers.admin_editions import EditionFormDep
+from app.schemas.extraction import ExtractionImage, ExtractionService
+from app.services import photo_storage
+from app.services.extraction import registry
+from app.services.extraction.base import ExtractionError
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+router = APIRouter(prefix="/admin/extract", tags=["extraction"])
+
+
+def _extraction_service_dep(session: SessionDep) -> ExtractionService:
+    try:
+        return registry.get_active_extraction_service(session)
+    except ExtractionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+ExtractionServiceDep = Annotated[ExtractionService, Depends(_extraction_service_dep)]
+
+
+@router.get("/new")
+def new_extraction_form(request: Request):
+    return templates.TemplateResponse(request, "admin/extract_upload.html", {})
+
+
+@router.post("/recognize")
+def recognize(
+    request: Request,
+    service: ExtractionServiceDep,
+    cover: Annotated[UploadFile, File()],
+    title_page: Annotated[UploadFile, File()],
+    title_verso: Annotated[UploadFile, File()],
+):
+    draft_id = secrets.token_hex(16)
+    uploads = dict(zip(photo_storage.DRAFT_KINDS, (cover, title_page, title_verso), strict=True))
+
+    try:
+        for kind, upload in uploads.items():
+            photo_storage.save_draft_image(draft_id, kind, upload)
+    except photo_storage.InvalidImageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    images = [
+        ExtractionImage(kind=kind, content=photo_storage.read_draft_image(draft_id, kind))
+        for kind in uploads
+    ]
+    try:
+        result = service.extract(images, language_hint="ru")
+    except ExtractionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return templates.TemplateResponse(
+        request, "admin/extraction_confirm.html", {"result": result, "draft_id": draft_id}
+    )
+
+
+def _attach_draft_cover(session: Session, copy_id: int, draft_id: str) -> None:
+    cover_path = photo_storage.resolve_draft_path(draft_id, "cover")
+    with open(cover_path, "rb") as fh:
+        attach_cover_photo(session, copy_id, UploadFile(file=fh, filename="cover.jpg"))
+
+
+@router.post("/{draft_id}/confirm")
+def confirm_extraction(draft_id: str, data: EditionFormDep, session: SessionDep):
+    try:
+        cover_path = photo_storage.resolve_draft_path(draft_id, "cover")
+    except photo_storage.InvalidDraftIdError:
+        raise HTTPException(status_code=404) from None
+    if not cover_path.exists():
+        raise HTTPException(
+            status_code=404, detail="Черновик не найден или устарел, начните заново"
+        )
+
+    edition = Edition(**asdict(data))
+    session.add(edition)
+    session.commit()
+    session.refresh(edition)
+
+    copy = Copy(edition_id=edition.id)
+    session.add(copy)
+    session.commit()
+    session.refresh(copy)
+
+    _attach_draft_cover(session, copy.id, draft_id)
+    photo_storage.delete_draft(draft_id)
+
+    return RedirectResponse(f"/admin/editions/{edition.id}", status_code=303)

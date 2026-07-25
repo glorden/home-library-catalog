@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+{% macro field(name, label, extracted, type="text") %}
+<label class="block">
+    <span class="text-sm text-gray-600">{{ label }}</span>
+    <input name="{{ name }}" type="{{ type }}"
+           value="{{ extracted.value if extracted and extracted.value is not none else '' }}"
+           class="mt-1 w-full rounded border-gray-300">
+    {% if extracted and extracted.confidence is not none and extracted.confidence < 0.5 %}
+    <p class="text-xs text-amber-600">низкая уверенность AI, проверьте вручную</p>
+    {% endif %}
+</label>
+{% endmacro %}
+<main class="mx-auto max-w-2xl p-6">
+    <h1 class="mb-1 text-xl font-semibold">Проверьте распознанные данные</h1>
+    <p class="mb-4 text-sm text-gray-500">
+        AI предзаполнил поля по фото — проверьте и поправьте перед сохранением.
+        Пока вы не нажмёте «Сохранить», запись не попадёт в базу.
+    </p>
+
+    {% if result.warnings %}
+    <div class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+        {% for warning in result.warnings %}<p>{{ warning }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="mb-4 flex gap-3">
+        <img src="/media/drafts/{{ draft_id }}/cover" alt="Обложка" class="h-32 w-24 rounded object-cover">
+        <img src="/media/drafts/{{ draft_id }}/title_page" alt="Титульный лист" class="h-32 w-24 rounded object-cover">
+        <img src="/media/drafts/{{ draft_id }}/title_verso" alt="Оборот титула" class="h-32 w-24 rounded object-cover">
+    </div>
+
+    <form method="post" action="/admin/extract/{{ draft_id }}/confirm" class="space-y-3">
+        <label class="block">
+            <span class="text-sm text-gray-600">Название *</span>
+            <input name="title" required
+                   value="{{ result.title.value if result.title and result.title.value is not none else '' }}"
+                   class="mt-1 w-full rounded border-gray-300">
+            {% if result.title and result.title.confidence is not none and result.title.confidence < 0.5 %}
+            <p class="text-xs text-amber-600">низкая уверенность AI, проверьте вручную</p>
+            {% endif %}
+        </label>
+        {{ field("subtitle", "Подзаголовок", result.subtitle) }}
+        {{ field("authors", "Автор(ы)", result.authors) }}
+        {{ field("publisher", "Издательство", result.publisher) }}
+        <div class="grid grid-cols-2 gap-3">
+            {{ field("publication_year", "Год издания", result.publication_year, type="number") }}
+            {{ field("publication_year_text", "Год текстом (если неточно)", result.publication_year_text) }}
+        </div>
+        {{ field("isbn", "ISBN", result.isbn) }}
+        {{ field("language", "Язык", result.language) }}
+        {{ field("series", "Серия", result.series) }}
+        {{ field("edition_statement", "Сведения об издании", result.edition_statement) }}
+        {{ field("physical_description", "Физическое описание", result.physical_description) }}
+        <label class="block">
+            <span class="text-sm text-gray-600">Заметки</span>
+            <textarea name="description" rows="3"
+                      class="mt-1 w-full rounded border-gray-300">{{ result.description.value if result.description and result.description.value is not none else '' }}</textarea>
+        </label>
+        <div class="flex gap-2 pt-2">
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                Сохранить
+            </button>
+            <a href="/admin/extract/new" class="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100">
+                Начать заново
+            </a>
+        </div>
+    </form>
+</main>
+{% endblock %}

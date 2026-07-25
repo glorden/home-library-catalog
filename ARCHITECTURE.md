@@ -16,7 +16,19 @@
       фото с телефона — 2.6 МБ 1920×2560 → 438 КБ 1200×1600, без EXIF;
       замена и удаление обложки корректно чистят файл с диска; 16/16 тестов
       проходят)
-- [ ] Шаг 4 — AI-извлечение
+- [x] Шаг 4 — AI-извлечение (проверено вживую: `docker compose up --build`,
+      миграция `provider_credentials` применена и накатана/откачена в
+      контейнере, partial unique index подтверждён реальными INSERT;
+      43/43 теста проходят на `FakeExtractionService`, реальный сетевой вызов
+      не выполняется в CI. Полный сценарий фото → распознавание →
+      подтверждение → сохранение → очистка черновика проверен вживую через
+      OpenAI-совместимый провайдер на реальном Gemini-ключе (`gemini-flash-latest`
+      через `https://generativelanguage.googleapis.com/v1beta/openai/`) —
+      кириллица прошла через форму без искажений. Сам Claude-провайдер живым
+      вызовом не проверялся (пользователь тестировал бесплатным Gemini-ключом
+      вместо платного Claude) — покрыт только тестами схемы/парсинга;
+      структура кода у обоих провайдеров идентична, реальный вызов Claude
+      можно проверить в любой момент, когда появится ключ)
 - [ ] Шаг 5 — аутентификация и витрина
 - [ ] Шаг 6 — поиск и дедупликация
 - [ ] Шаг 7 — PWA
@@ -31,16 +43,16 @@ home-library-catalog/
 │   ├── main.py, config.py, database.py*, dependencies.py*, security.py*, cli.py*
 │   ├── models/*          # editions.py, copies.py, photos.py, user.py,
 │   │                      # provider_credential.py + __init__.py со ВСЕМИ импортами
-│   ├── schemas/extraction.py*
+│   ├── schemas/extraction.py
 │   ├── routers/
 │   │   ├── pages.py, search.py*, auth.py*                     # публичные
-│   │   └── admin_editions.py*, admin_copies.py*, admin_photos.py*,
-│   │       admin_settings.py*, extraction.py*                 # APIRouter(prefix="/admin/...",
-│   │                                                           #   dependencies=[Depends(require_owner)])
+│   │   └── admin_editions.py, admin_copies.py, admin_settings.py,
+│   │       extraction.py                                      # APIRouter(prefix="/admin/...",
+│   │                                                           #   dependencies=[Depends(require_owner)] — шаг 5)
 │   ├── services/*
-│   │   ├── extraction/{base.py, claude_provider.py, openai_compatible_provider.py,
-│   │   │                gemini_provider.py, registry.py}
-│   │   ├── photo_storage.py, dedup.py, search.py
+│   │   ├── extraction/{base.py, claude_provider.py,
+│   │   │                openai_compatible_provider.py, registry.py}
+│   │   ├── photo_storage.py, crypto.py, dedup.py, search.py
 │   ├── templates/{base.html, partials/, pages/, admin/*}
 │   └── static/{css/input.css, css/output.css (сгенерирован), js/htmx.min.js (скачан),
 │                icons/*, manifest.json*, sw.js*}
@@ -82,9 +94,46 @@ home-library-catalog/
   функции) — см. "Аутентификация" (шаг 5).
 - `app/models/__init__.py` должен импортировать все модели — иначе Alembic
   autogenerate молча не увидит новую таблицу (актуально с шага 2).
-- Только `app/services/extraction/*_provider.py` смогут импортировать SDK
-  конкретных AI-провайдеров (anthropic/openai/google) — остальной код будет
-  работать только через `ExtractionService` Protocol (шаг 4).
+- Только `app/services/extraction/*_provider.py` импортируют SDK конкретных
+  AI-провайдеров (`anthropic`, `openai`) — остальной код работает только
+  через `ExtractionService` Protocol (шаг 4).
+- `provider_credentials` — без `user_id` (расхождение с ранним черновиком
+  этого документа): таблицы `users` ещё нет (шаг 5), а вся авторизация в
+  проекте — на уровне роутера, не строк; колонка-владелец, всегда
+  указывающая на единственную строку `users`, не давала бы поведения взамен
+  сложности. Вместо неё — глобальный partial unique index (не более одной
+  `is_active=true` строки).
+- Черновики фото для AI (шаг 4) — временные файлы на диске
+  (`data/photos/_drafts/{draft_id}/`), не строки в `photos`: `Photo.copy_id`
+  и `Copy.edition_id` — NOT NULL, `Edition.title` — NOT NULL без default, так
+  что строка-черновик потребовала бы либо ослаблять эти constraints, либо
+  заводить `status`/`is_draft` на `Copy`, который пришлось бы не забывать
+  фильтровать везде (список изданий, поиск, витрина) до конца проекта.
+  `draft_id` — 32 hex-символа (`secrets.token_hex(16)`); `photo_storage.py`
+  проверяет формат при каждом обращении (`InvalidDraftIdError`) — он приходит
+  из URL (`/admin/extract/{draft_id}/confirm`, `/media/drafts/{draft_id}/{kind}`),
+  то есть от клиента, и без проверки был бы path traversal.
+- AI-извлечение (Claude и OpenAI-совместимые) получает структуру ответа через
+  **forced tool-choice** (`tool_choice` на конкретную функцию, `strict: true`
+  на схеме), а не через prompt-JSON или `output_config.format` — работает с
+  произвольной моделью, которую впишут строкой в настройках, и не требует
+  `json.loads()` вручную у Claude (у OpenAI-совместимых `function.arguments`
+  всё же приходит JSON-строкой — разница учтена в каждом провайдере).
+  Список полей/JSON-схема/парсинг ответа — общие для всех провайдеров,
+  живут в `app/services/extraction/base.py`, чтобы не разъезжались.
+- **Gemini не нуждается в отдельном `gemini_provider.py`**: у неё есть
+  OpenAI-совместимый эндпоинт (`https://generativelanguage.googleapis.com/v1beta/openai/`),
+  который поддерживает и картинки, и forced tool-choice — значит
+  `openai_compatible_provider.py` закрывает Gemini, Groq и саму OpenAI одним
+  кодом (не 3 реализации, а 2 после Claude). Groq тоже подтверждён рабочим
+  вариантом (forced tool-choice, до 5 фото за запрос, бесплатный тариф) — в
+  отличие от Cerebras, у которого нет forced tool-choice и лимит 2 фото на
+  бесплатном тарифе (нам нужно 3).
+- Ошибки типа "сервис не настроен" (`EncryptionNotConfiguredError` из
+  `crypto.py`, когда `SETTINGS_ENCRYPTION_KEY` не задан) обязательно ловятся
+  на границе роутера и превращаются в понятный `HTTPException` — поймали
+  живьём при первой попытке сохранить настройки: без обработки это была
+  голая "Internal Server Error" вместо "переменная не задана".
 - Sync SQLAlchemy, не async — при реальной нагрузке (один владелец + случайные
   посетители витрины) async ничего не даёт, только усложняет.
 - Без нативных Postgres ENUM — везде `varchar` + Python `enum.Enum` на уровне
@@ -97,10 +146,10 @@ home-library-catalog/
 
 **`provider_credentials`** — настройки AI-провайдера (в БД, не в `.env`, так
 как idea.md хочет выбор провайдера "в настройках"):
-`id, user_id, provider (строка: claude|openai|gemini|openai_compatible),
-display_name, api_key_encrypted (Fernet), base_url, model_name, is_active`
-(+ частичный уникальный индекс: не более одного активного провайдера на
-пользователя).
+`id, provider (строка: claude|openai|gemini|openai_compatible), display_name,
+api_key_encrypted (Fernet), base_url, model_name, is_active, created_at,
+updated_at` (+ частичный уникальный индекс: не более одной `is_active=true`
+строки — без `user_id`, см. "Ключевые решения").
 
 **`editions`** (библиографическая запись), базовые поля — шаг 2:
 `id, title, subtitle, authors (свободный текст — см. риски), original_title,
@@ -130,11 +179,16 @@ ex_libris|damage|other), file_path (относительный, случайны
 sort_order, created_at`.
 
 **Политика хранения фото**: долговременно хранится только `kind='cover'`.
-Остальные снимки (титул, оборот титула и т.д.) — вход для AI-извлечения; их
-файлы и записи удаляются сразу после подтверждения записи (шаг 4).
-Незавершённые черновики (фото загружены, запись не подтверждена) —
-кандидаты на периодическую очистку (например, всё старше 48 часов) — простая
-задача-уборщик внутри шага 3, не отдельный этап. Отдельная видимость по фото
+Остальные снимки (титул, оборот титула и т.д.) — вход для AI-извлечения и
+**не попадают в `photos` вообще** (шаг 4): пока запись не подтверждена, они
+лежат как обычные файлы в `data/photos/_drafts/{draft_id}/`, вне БД. После
+подтверждения обложка промоутится в постоянное хранилище через тот же
+`photo_storage.save_cover_photo`, что и у ручного добавления экземпляра, а
+остальные файлы черновика удаляются вместе с папкой. Незавершённые черновики
+(фото загружены, запись не подтверждена) чистит фоновый asyncio-цикл в
+`main.py` (`sweep_abandoned_drafts`, раз в 6 часов, порог 48 часов,
+отключается флагом `enable_draft_cleanup_loop` в тестах) — чистая развёртка
+файловой системы по mtime, без обращения к БД. Отдельная видимость по фото
 не нужна (`is_public` остаётся только на `copies`) — раз хранится только
 обложка, её видимость полностью определяется видимостью экземпляра.
 
@@ -155,7 +209,7 @@ similarity по title как третий сигнал. Кандидаты то�
 смысл — решение `X-Accel-Redirect` (FastAPI проверяет права → просит nginx
 `internal;`-location отдать файл), детали в [DEPLOY.md](DEPLOY.md) (шаг 8).
 
-## `ExtractionService` (шаг 4)
+## `ExtractionService` (шаг 4) — реализовано
 
 ```python
 class ExtractionImage(BaseModel):
@@ -169,11 +223,18 @@ class ExtractedField(BaseModel):
 
 class ExtractionResult(BaseModel):
     title: ExtractedField | None = None
+    subtitle: ExtractedField | None = None
     authors: ExtractedField | None = None
+    original_title: ExtractedField | None = None
     publisher: ExtractedField | None = None
     publication_year: ExtractedField | None = None
+    publication_year_text: ExtractedField | None = None
     isbn: ExtractedField | None = None
-    # ... остальные поля editions
+    language: ExtractedField | None = None
+    series: ExtractedField | None = None
+    edition_statement: ExtractedField | None = None
+    physical_description: ExtractedField | None = None
+    description: ExtractedField | None = None
     provider_name: str
     model_name: str
     raw_response: str | None = None   # только для аудита, не для показа
@@ -184,19 +245,38 @@ class ExtractionService(Protocol):
     def extract(self, images: list[ExtractionImage], *, language_hint: str = "ru") -> ExtractionResult: ...
 ```
 
-Реально нужно 3 реализации, не 5: `claude_provider.py` (Anthropic),
-`gemini_provider.py` (Google) и `openai_compatible_provider.py`, который
-параметризуется `base_url` + `model_name` и покрывает OpenAI, большинство
-локальных LLM-серверов (Ollama/LM Studio/llama.cpp — обычно дают
-OpenAI-совместимый endpoint) и "другие совместимые сервисы" одним кодом.
+Две реализации, не три (см. "Ключевые решения" — Gemini закрывается тем же
+OpenAI-совместимым кодом):
+- `claude_provider.py` — `anthropic.Anthropic`, forced tool-choice
+  (`tool_choice={"type": "tool", "name": ...}`), `tool_use.input` уже
+  распарсен SDK.
+- `openai_compatible_provider.py` — `openai.OpenAI(base_url=...)`, forced
+  tool-choice (`tool_choice={"type": "function", "function": {"name": ...}}`),
+  `function.arguments` — JSON-строка, парсится вручную. Проверен вживую на
+  реальном Gemini-ключе через `https://generativelanguage.googleapis.com/v1beta/openai/`
+  и на списке моделей Groq (`https://api.groq.com/openai/v1`).
+- `base.py` — общий для обоих: список полей `FIELDS`, JSON-схема параметров
+  инструмента (`build_tool_parameters_schema`), инструкции промпта,
+  `parse_tool_input` (строит `ExtractedField(None, None)`, а не голый `None`,
+  когда provider в strict-режиме прислал `{"value": null, "confidence": null}`
+  — так делают И Claude, И OpenAI-совместимые).
 
-Предобработка фото (resize до ~2000-3000px, JPEG, обязательная зачистка EXIF)
-происходит один раз в `photo_storage.py` до отправки в любой провайдер — не
-дублируется в каждой реализации.
+Ни один провайдер не форсирует `thinking`/`effort` — параметры не
+выставляются вовсе, чтобы работать с произвольной моделью, которую вписали
+строкой в настройках (часть моделей 400-ит на неизвестных им параметрах).
+
+Предобработка фото — в `photo_storage.py`, разными профилями: черновики для
+AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титульным листам нужно
+разрешение для OCR), сама обложка при промоушене в постоянное хранилище —
+до `MAX_DIMENSION=1600`, тем же путём, что и у ручного добавления экземпляра
+(единообразие независимо от источника).
 
 Хранение настроек — таблица `provider_credentials`, ключи шифруются
 `cryptography.fernet.Fernet` с ключом из `SETTINGS_ENCRYPTION_KEY` (env,
-никогда не в БД).
+никогда не в БД). Форма `/admin/settings` управляет ровно одной строкой
+(find-or-create, `is_active` всегда `true`) — многопровайдерный UI
+(список/активация) не нужен, пока провайдеров реально используется один за
+раз; поле API-ключа в форме всегда пустое, "оставить пустым — не менять".
 
 ## Аутентификация (шаг 5)
 
@@ -271,3 +351,13 @@ OpenAI-совместимый endpoint) и "другие совместимые 
 9. `authors` как свободный текст в MVP ослабит будущий поиск "по автору" —
    осознанное упрощение, вынесено в post-MVP (нормализация в отдельную
    таблицу).
+10. Каталоги моделей у провайдеров расходятся с документацией быстрее, чем
+    она обновляется — на живом тесте модель из документации Google
+    (`gemini-3-flash`) не нашлась в реальном списке, пришлось запрашивать
+    `/v1beta/openai/models` напрямую. Не жёстко прошивать имя модели нигде —
+    оно всегда пользовательский текстовый ввод, именно на этот случай.
+11. `Edition.original_title` — колонка есть в БД с шага 2, но нет формы для
+    её редактирования нигде (ни в `edition_form.html`, ни в форме
+    подтверждения AI-извлечения) — обнаружено при шаге 4, не чинилось
+    (за рамками этого шага). AI всё равно извлекает это поле в схему, но
+    результат при подтверждении никуда не попадает.

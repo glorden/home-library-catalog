@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="mx-auto max-w-2xl p-6">
+    <h1 class="mb-1 text-xl font-semibold">Добавить книгу по фото</h1>
+    <p class="mb-4 text-sm text-gray-500">
+        Сфотографируйте обложку, титульный лист и оборот титульного листа — AI предзаполнит
+        карточку издания, поля можно будет поправить перед сохранением.
+    </p>
+    <form method="post" action="/admin/extract/recognize" enctype="multipart/form-data" class="space-y-3">
+        <label class="block">
+            <span class="text-sm text-gray-600">Обложка</span>
+            <input type="file" name="cover" accept="image/*" capture="environment" required
+                   class="mt-1 w-full text-sm">
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Титульный лист</span>
+            <input type="file" name="title_page" accept="image/*" capture="environment" required
+                   class="mt-1 w-full text-sm">
+        </label>
+        <label class="block">
+            <span class="text-sm text-gray-600">Оборот титульного листа</span>
+            <input type="file" name="title_verso" accept="image/*" capture="environment" required
+                   class="mt-1 w-full text-sm">
+        </label>
+        <div class="flex gap-2 pt-2">
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                Распознать
+            </button>
+            <a href="/admin/editions" class="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100">
+                Отмена
+            </a>
+        </div>
+    </form>
+</main>
+{% endblock %}

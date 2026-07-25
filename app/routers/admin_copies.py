@@ -75,7 +75,7 @@ def _get_cover_photo(session: Session, copy_id: int) -> Photo | None:
     ).first()
 
 
-def _save_cover_photo(session: Session, copy_id: int, upload: UploadFile) -> None:
+def attach_cover_photo(session: Session, copy_id: int, upload: UploadFile) -> None:
     try:
         meta = photo_storage.save_cover_photo(copy_id, upload)
     except photo_storage.InvalidImageError as exc:
@@ -126,7 +126,7 @@ def create_copy(
     session.refresh(copy)
 
     if cover_photo is not None and cover_photo.filename:
-        _save_cover_photo(session, copy.id, cover_photo)
+        attach_cover_photo(session, copy.id, cover_photo)
 
     return RedirectResponse(f"/admin/editions/{edition_id}", status_code=303)
 
@@ -167,7 +167,7 @@ def update_copy(
             photo_storage.delete_photo_file(existing.file_path)
             session.delete(existing)
             session.commit()
-        _save_cover_photo(session, copy_id, cover_photo)
+        attach_cover_photo(session, copy_id, cover_photo)
 
     return RedirectResponse(f"/admin/editions/{copy.edition_id}", status_code=303)
 

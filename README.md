@@ -54,6 +54,35 @@ make css      # скачивает standalone Tailwind CLI и собирает o
 Оба таргета качают файлы из интернета (unpkg.com / GitHub releases) — сначала
 проверьте содержимое `Makefile`, если это важно для вашего окружения.
 
+## Настройка AI-провайдера
+
+Чтобы попробовать распознавание по фото (`/admin/extract/new`), нужно
+сгенерировать ключ шифрования и настроить провайдера:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Положите результат в `.env` (в корне репозитория, не коммитится):
+
+```
+SETTINGS_ENCRYPTION_KEY=<сгенерированное значение>
+```
+
+Пересоздайте контейнер (переменные окружения подхватываются только при
+создании, не при обычном рестарте):
+
+```bash
+docker compose up -d
+```
+
+Откройте `/admin/settings` и укажите одного из провайдеров:
+
+- **Claude (Anthropic)** — ключ из [console.anthropic.com](https://console.anthropic.com);
+- **OpenAI-совместимый** — подходит для Groq, Gemini (через её
+  OpenAI-совместимый эндпоинт) и локальных серверов вроде Ollama/LM Studio;
+  нужен `base_url` конкретного сервиса (см. подсказку в форме).
+
 ## Тесты и линт
 
 ```bash
