@@ -44,6 +44,7 @@ def test_recognize_prefills_confirmation_form_and_handles_null_value(db_client):
     fake = FakeExtractionService(
         result=ExtractionResult(
             title=ExtractedField(value="Война и мир", confidence=0.95),
+            original_title=ExtractedField(value="War and Peace", confidence=0.7),
             isbn=ExtractedField(value=None, confidence=None),
             provider_name="fake",
             model_name="fake-model",
@@ -55,6 +56,7 @@ def test_recognize_prefills_confirmation_form_and_handles_null_value(db_client):
 
     assert response.status_code == 200
     assert "Война и мир" in response.text
+    assert "War and Peace" in response.text
     assert "None" not in response.text
     assert len(fake.calls) == 1
     assert len(fake.calls[0]) == 3
@@ -76,7 +78,10 @@ def test_confirm_saves_user_edits_and_keeps_only_cover_photo(db_client, session)
 
     confirm_response = db_client.post(
         f"/admin/extract/{draft_id}/confirm",
-        data={"title": "Исправленное пользователем название"},
+        data={
+            "title": "Исправленное пользователем название",
+            "original_title": "Corrected Original Title",
+        },
         follow_redirects=False,
     )
     assert confirm_response.status_code == 303
@@ -85,6 +90,7 @@ def test_confirm_saves_user_edits_and_keeps_only_cover_photo(db_client, session)
     # Подтверждаем принцип «AI не пишет в базу без подтверждения»: в базе — правка
     # пользователя, а не сырой ответ AI.
     assert edition.title == "Исправленное пользователем название"
+    assert edition.original_title == "Corrected Original Title"
 
     copy = session.exec(select(Copy).where(Copy.edition_id == edition.id)).one()
     photos = session.exec(select(Photo).where(Photo.copy_id == copy.id)).all()

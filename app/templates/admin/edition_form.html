@@ -19,6 +19,12 @@
                    class="mt-1 w-full rounded border-gray-300">
         </label>
         <label class="block">
+            <span class="text-sm text-gray-600">Оригинальное название</span>
+            <input name="original_title"
+                   value="{{ edition.original_title if edition and edition.original_title is not none else '' }}"
+                   class="mt-1 w-full rounded border-gray-300">
+        </label>
+        <label class="block">
             <span class="text-sm text-gray-600">Автор(ы)</span>
             <input name="authors"
                    value="{{ edition.authors if edition and edition.authors is not none else '' }}"

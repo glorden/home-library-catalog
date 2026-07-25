@@ -22,6 +22,7 @@ router = APIRouter(prefix="/admin/editions", tags=["editions"])
 class EditionFormData:
     title: str
     subtitle: str | None
+    original_title: str | None
     authors: str | None
     publisher: str | None
     publication_year: int | None
@@ -37,6 +38,7 @@ class EditionFormData:
 def edition_form(
     title: str = Form(...),
     subtitle: str = Form(""),
+    original_title: str = Form(""),
     authors: str = Form(""),
     publisher: str = Form(""),
     publication_year: str = Form(""),
@@ -51,6 +53,7 @@ def edition_form(
     return EditionFormData(
         title=title,
         subtitle=subtitle or None,
+        original_title=original_title or None,
         authors=authors or None,
         publisher=publisher or None,
         publication_year=int(publication_year) if publication_year.strip() else None,
