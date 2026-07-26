@@ -1,0 +1,20 @@
+<div id="dedup-candidates">
+{% if candidates %}
+<div class="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+    <p class="mb-1 font-medium">Похоже, такая книга уже есть в каталоге:</p>
+    <ul class="space-y-1">
+        {% for c in candidates %}
+        <li>
+            <a href="/admin/editions/{{ c.edition.id }}" target="_blank"
+               class="text-indigo-700 underline hover:no-underline">
+                {{ c.edition.title }}{% if c.edition.authors %} — {{ c.edition.authors }}{% endif %}{% if c.edition.publication_year %} ({{ c.edition.publication_year }}){% endif %}
+            </a>
+            <span class="text-xs text-amber-600">{%- if c.reason == "isbn" %} · совпадает ISBN
+                {%- elif c.reason == "fingerprint" %} · похоже, то же издание
+                {%- else %} · похожее название{% endif %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+</div>

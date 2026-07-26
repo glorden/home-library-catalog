@@ -32,6 +32,15 @@ def _ensure_test_database_exists() -> None:
             conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
     admin_engine.dispose()
 
+    # session-фикстура ниже гоняет SQLModel.metadata.create_all(), а не
+    # Alembic-миграции — значит расширение pg_trgm (нужно find_candidates
+    # для similarity(), шаг 6) само по себе в library_test не появится.
+    # IF NOT EXISTS — идемпотентно, безопасно на каждый запуск.
+    test_engine = create_sa_engine(_test_database_url(), isolation_level="AUTOCOMMIT")
+    with test_engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    test_engine.dispose()
+
 
 @pytest.fixture(autouse=True)
 def _isolated_photo_storage(tmp_path, monkeypatch):

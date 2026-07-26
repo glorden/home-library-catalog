@@ -1,5 +1,4 @@
 import secrets
-from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated
 
@@ -10,9 +9,9 @@ from sqlmodel import Session
 
 from app.config import settings
 from app.dependencies import SessionDep, require_owner
-from app.models import Copy, Edition
+from app.models import Copy
 from app.routers.admin_copies import attach_cover_photo
-from app.routers.admin_editions import EditionFormDep
+from app.routers.admin_editions import EditionFormDep, create_edition_from_form
 from app.schemas.extraction import ExtractionImage, ExtractionService
 from app.services import extraction_log, photo_storage
 from app.services.extraction import registry
@@ -120,10 +119,7 @@ def confirm_extraction(draft_id: str, data: EditionFormDep, session: SessionDep)
             status_code=404, detail="Черновик не найден или устарел, начните заново"
         )
 
-    edition = Edition(**asdict(data))
-    session.add(edition)
-    session.commit()
-    session.refresh(edition)
+    edition = create_edition_from_form(session, data)
 
     copy = Copy(edition_id=edition.id)
     session.add(copy)

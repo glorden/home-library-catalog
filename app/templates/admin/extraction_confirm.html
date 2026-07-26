@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-{% macro field(name, label, extracted, type="text") %}
+{% macro field(name, label, extracted, type="text", dedup_watch=False) %}
 <label class="block">
     <span class="text-sm text-gray-600">{{ label }}</span>
     <input name="{{ name }}" type="{{ type }}"
            value="{{ extracted.value if extracted and extracted.value is not none else '' }}"
-           class="mt-1 w-full rounded border-gray-300">
+           class="mt-1 w-full rounded border-gray-300"
+           {% if dedup_watch %}
+           hx-get="/admin/editions/dedup-candidates"
+           hx-trigger="keyup changed delay:500ms, change"
+           hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form"
+           {% endif %}>
     {% if extracted and extracted.confidence is not none and extracted.confidence < 0.5 %}
     <p class="text-xs text-amber-600">низкая уверенность AI, проверьте вручную</p>
     {% endif %}
@@ -31,24 +36,28 @@
     </div>
 
     <form method="post" action="/admin/extract/{{ draft_id }}/confirm" class="space-y-3">
+        {% include "admin/partials/dedup_candidates.html" %}
         <label class="block">
             <span class="text-sm text-gray-600">Название *</span>
             <input name="title" required
                    value="{{ result.title.value if result.title and result.title.value is not none else '' }}"
-                   class="mt-1 w-full rounded border-gray-300">
+                   class="mt-1 w-full rounded border-gray-300"
+                   hx-get="/admin/editions/dedup-candidates"
+                   hx-trigger="load, keyup changed delay:500ms, change"
+                   hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form">
             {% if result.title and result.title.confidence is not none and result.title.confidence < 0.5 %}
             <p class="text-xs text-amber-600">низкая уверенность AI, проверьте вручную</p>
             {% endif %}
         </label>
         {{ field("subtitle", "Подзаголовок", result.subtitle) }}
         {{ field("original_title", "Оригинальное название", result.original_title) }}
-        {{ field("authors", "Автор(ы)", result.authors) }}
+        {{ field("authors", "Автор(ы)", result.authors, dedup_watch=True) }}
         {{ field("publisher", "Издательство", result.publisher) }}
         <div class="grid grid-cols-2 gap-3">
-            {{ field("publication_year", "Год издания", result.publication_year, type="number") }}
+            {{ field("publication_year", "Год издания", result.publication_year, type="number", dedup_watch=True) }}
             {{ field("publication_year_text", "Год текстом (если неточно)", result.publication_year_text) }}
         </div>
-        {{ field("isbn", "ISBN", result.isbn) }}
+        {{ field("isbn", "ISBN", result.isbn, dedup_watch=True) }}
         {{ field("language", "Язык", result.language) }}
         {{ field("series", "Серия", result.series) }}
         {{ field("edition_statement", "Сведения об издании", result.edition_statement) }}

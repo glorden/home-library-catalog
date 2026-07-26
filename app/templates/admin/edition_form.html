@@ -7,10 +7,15 @@
     <form method="post"
           action="{{ '/admin/editions/' ~ edition.id if edition else '/admin/editions' }}"
           class="space-y-3">
+        <input type="hidden" name="exclude_edition_id" value="{{ edition.id if edition else '' }}">
+        {% include "admin/partials/dedup_candidates.html" %}
         <label class="block">
             <span class="text-sm text-gray-600">Название *</span>
             <input name="title" required value="{{ edition.title if edition else '' }}"
-                   class="mt-1 w-full rounded border-gray-300">
+                   class="mt-1 w-full rounded border-gray-300"
+                   hx-get="/admin/editions/dedup-candidates"
+                   hx-trigger="load, keyup changed delay:500ms, change"
+                   hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form">
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Подзаголовок</span>
@@ -28,7 +33,10 @@
             <span class="text-sm text-gray-600">Автор(ы)</span>
             <input name="authors"
                    value="{{ edition.authors if edition and edition.authors is not none else '' }}"
-                   class="mt-1 w-full rounded border-gray-300">
+                   class="mt-1 w-full rounded border-gray-300"
+                   hx-get="/admin/editions/dedup-candidates"
+                   hx-trigger="keyup changed delay:500ms, change"
+                   hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form">
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Издательство</span>
@@ -41,7 +49,10 @@
                 <span class="text-sm text-gray-600">Год издания</span>
                 <input name="publication_year" type="number"
                        value="{{ edition.publication_year if edition and edition.publication_year is not none else '' }}"
-                       class="mt-1 w-full rounded border-gray-300">
+                       class="mt-1 w-full rounded border-gray-300"
+                       hx-get="/admin/editions/dedup-candidates"
+                       hx-trigger="keyup changed delay:500ms, change"
+                       hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form">
             </label>
             <label class="block">
                 <span class="text-sm text-gray-600">Год текстом (если неточно)</span>
@@ -53,7 +64,10 @@
         <label class="block">
             <span class="text-sm text-gray-600">ISBN</span>
             <input name="isbn" value="{{ edition.isbn if edition and edition.isbn is not none else '' }}"
-                   class="mt-1 w-full rounded border-gray-300">
+                   class="mt-1 w-full rounded border-gray-300"
+                   hx-get="/admin/editions/dedup-candidates"
+                   hx-trigger="keyup changed delay:500ms, change"
+                   hx-target="#dedup-candidates" hx-swap="outerHTML" hx-include="closest form">
         </label>
         <label class="block">
             <span class="text-sm text-gray-600">Язык</span>

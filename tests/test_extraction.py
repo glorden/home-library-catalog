@@ -10,6 +10,7 @@ from app.models import Copy, Edition, ExtractionCall, Photo
 from app.routers.extraction import _extraction_service_dep
 from app.schemas.extraction import ExtractedField, ExtractionResult
 from app.services import photo_storage
+from app.services.dedup import compute_fingerprint
 from app.services.extraction.base import ExtractionError
 from tests.fakes import FakeExtractionService
 
@@ -99,6 +100,54 @@ def test_confirm_saves_user_edits_and_keeps_only_cover_photo(db_client, session)
     assert photos[0].kind == "cover"
 
     assert not photo_storage.draft_dir(draft_id).exists()
+
+
+def test_recognize_form_wires_dedup_candidates_htmx(db_client):
+    # title/authors/publication_year/isbn должны бить в один и тот же
+    # эндпоинт дедупа; title дополнительно триггерится на load (див
+    # #dedup-candidates наполняется сразу, без ожидания первого keyup).
+    fake = FakeExtractionService(
+        result=ExtractionResult(
+            title=ExtractedField(value="Война и мир", confidence=0.95),
+            provider_name="fake",
+            model_name="fake-model",
+        )
+    )
+    _use_fake_service(fake)
+
+    response = db_client.post("/admin/extract/recognize", files=_photo_files())
+    html = response.text
+
+    assert html.count('hx-get="/admin/editions/dedup-candidates"') == 4  # title + 3 macro-поля
+    assert 'hx-trigger="load, keyup changed delay:500ms, change"' in html
+    assert 'id="dedup-candidates"' in html
+
+
+def test_confirm_sets_dedup_fingerprint(db_client, session):
+    # Тот же путь, что и ручное добавление (admin_editions.create_edition_from_form,
+    # шаг 6) — dedup_fingerprint не должен зависеть от того, как запись создана.
+    fake = FakeExtractionService(
+        result=ExtractionResult(
+            title=ExtractedField(value="AI-название", confidence=0.9),
+            provider_name="fake",
+            model_name="fake-model",
+        )
+    )
+    _use_fake_service(fake)
+
+    recognize_response = db_client.post("/admin/extract/recognize", files=_photo_files())
+    draft_id = _extract_draft_id(recognize_response.text)
+
+    db_client.post(
+        f"/admin/extract/{draft_id}/confirm",
+        data={"title": "Подтверждённое название", "authors": "Автор из формы"},
+        follow_redirects=False,
+    )
+
+    edition = session.exec(select(Edition)).one()
+    assert edition.dedup_fingerprint == compute_fingerprint(
+        "Подтверждённое название", "Автор из формы", None
+    )
 
 
 def test_extraction_error_returns_422_and_keeps_draft_files(db_client, tmp_path):

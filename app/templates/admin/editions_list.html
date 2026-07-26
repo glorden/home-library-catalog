@@ -17,6 +17,14 @@
             </a>
         </div>
     </div>
+    <input type="search" name="q" value="{{ q }}" placeholder="Поиск по названию, автору, ISBN…"
+           class="mb-3 w-full rounded border-gray-300 text-sm"
+           hx-get="/admin/editions"
+           hx-trigger="keyup changed delay:400ms, search"
+           hx-select="#editions-table-body"
+           hx-target="#editions-table-body"
+           hx-swap="outerHTML"
+           hx-push-url="true">
     <table class="w-full text-left text-sm">
         <thead>
             <tr class="border-b text-gray-500">
@@ -30,7 +38,9 @@
             {% for edition in editions %}
             {% include "admin/partials/edition_row.html" %}
             {% else %}
-            <tr><td colspan="4" class="py-4 text-gray-500">Пока нет ни одного издания.</td></tr>
+            <tr><td colspan="4" class="py-4 text-gray-500">
+                {{ "Ничего не найдено." if q else "Пока нет ни одного издания." }}
+            </td></tr>
             {% endfor %}
         </tbody>
     </table>

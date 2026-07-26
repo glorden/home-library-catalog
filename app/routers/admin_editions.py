@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from app.dependencies import SessionDep, require_owner
 from app.models import Copy, Edition, Photo
+from app.services import dedup, search
 from app.timeutil import utcnow
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -72,10 +73,25 @@ def edition_form(
 EditionFormDep = Annotated[EditionFormData, Depends(edition_form)]
 
 
+def create_edition_from_form(session: Session, data: EditionFormData) -> Edition:
+    """Общий путь создания Edition из формы — используется и ручным
+    добавлением (create_edition), и AI-подтверждением
+    (extraction.py::confirm_extraction), чтобы dedup_fingerprint
+    проставлялся ровно в одном месте, а не дублировался по обеим веткам."""
+    edition = Edition(**asdict(data))
+    dedup.apply_fingerprint(edition)
+    session.add(edition)
+    session.commit()
+    session.refresh(edition)
+    return edition
+
+
 @router.get("")
-def list_editions(request: Request, session: SessionDep):
-    editions = session.exec(select(Edition).order_by(Edition.title)).all()
-    return templates.TemplateResponse(request, "admin/editions_list.html", {"editions": editions})
+def list_editions(request: Request, session: SessionDep, q: str = ""):
+    editions = search.search_editions(session, q, public_only=False)
+    return templates.TemplateResponse(
+        request, "admin/editions_list.html", {"editions": editions, "q": q}
+    )
 
 
 @router.get("/new")
@@ -83,12 +99,37 @@ def new_edition_form(request: Request):
     return templates.TemplateResponse(request, "admin/edition_form.html", {"edition": None})
 
 
+@router.get("/dedup-candidates")
+def dedup_candidates_fragment(
+    request: Request,
+    session: SessionDep,
+    title: str = "",
+    authors: str = "",
+    publication_year: str = "",
+    isbn: str = "",
+    exclude_edition_id: str = "",
+):
+    # Дёргается на каждое нажатие клавиши (htmx), в т.ч. с "недопечатанным"
+    # вводом — разбор года/id должен быть терпимым, никогда не 422-ить,
+    # в отличие от боевой формы сохранения (edition_form ниже).
+    candidates = dedup.find_candidates(
+        session,
+        title=title,
+        authors=authors or None,
+        year=int(publication_year) if publication_year.strip().isdigit() else None,
+        isbn=isbn or None,
+        exclude_edition_id=(
+            int(exclude_edition_id) if exclude_edition_id.strip().isdigit() else None
+        ),
+    )
+    return templates.TemplateResponse(
+        request, "admin/partials/dedup_candidates.html", {"candidates": candidates}
+    )
+
+
 @router.post("")
 def create_edition(data: EditionFormDep, session: SessionDep):
-    edition = Edition(**asdict(data))
-    session.add(edition)
-    session.commit()
-    session.refresh(edition)
+    edition = create_edition_from_form(session, data)
     return RedirectResponse(f"/admin/editions/{edition.id}", status_code=303)
 
 
@@ -128,6 +169,7 @@ def update_edition(edition_id: int, data: EditionFormDep, session: SessionDep):
     for field, value in asdict(data).items():
         setattr(edition, field, value)
     edition.updated_at = utcnow()
+    dedup.apply_fingerprint(edition)
     session.add(edition)
     session.commit()
     return RedirectResponse(f"/admin/editions/{edition.id}", status_code=303)
