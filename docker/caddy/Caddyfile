@@ -1,0 +1,40 @@
+book.glorden.ru {
+	encode gzip
+
+	# Троттлинг /login — единственный admin-пароль в системе не должен
+	# гоняться на брутфорс вообще без ограничения частоты (см. ARCHITECTURE.md).
+	rate_limit {
+		zone login {
+			match {
+				path /login
+			}
+			key {remote_host}
+			events 5
+			window 1m
+		}
+	}
+
+	# X-Accel-Redirect-эквивалент: app/routers/media.py проверяет права и
+	# просит Caddy отдать файл напрямую с диска — без этого is_public
+	# ничего не значит (см. ARCHITECTURE.md).
+	handle /media/photos/* {
+		reverse_proxy app:8000 {
+			@accel header X-Accel-Redirect *
+			handle_response @accel {
+				root * /data/photos
+				rewrite * {rp.header.X-Accel-Redirect}
+				file_server
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy app:8000
+	}
+
+	# С запасом под фото с телефона (после ресайза на сервере, но до этого
+	# момента запрос ещё содержит оригинал).
+	request_body {
+		max_size 20MB
+	}
+}

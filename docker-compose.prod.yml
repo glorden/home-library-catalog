@@ -1,0 +1,34 @@
+# Прод-оверлей. Запускается явно:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# docker-compose.override.yml (dev-порты/биндмаунты/--reload) в этот набор
+# не входит и в проде не подхватывается.
+services:
+  db:
+    restart: unless-stopped
+
+  app:
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: docker/caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Сертификаты и ACME-состояние переживают рестарт/redeploy контейнера
+      # без повторного запроса к Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
+      # Та же директория, что смонтирована в app (см. docker-compose.yml) —
+      # сюда указывает X-Accel-Redirect из app/routers/media.py. Read-only:
+      # Caddy только отдаёт файлы, не пишет.
+      - ./data/photos:/data/photos:ro
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

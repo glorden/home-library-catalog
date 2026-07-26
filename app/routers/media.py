@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.dependencies import CurrentUserDep, SessionDep, require_owner
 from app.models import Copy, Photo
@@ -22,7 +22,13 @@ def serve_photo(photo_id: int, session: SessionDep, current_user: CurrentUserDep
     path = photo_storage.resolve_path(photo.file_path)
     if not path.exists():
         raise HTTPException(status_code=404)
-    return FileResponse(path, media_type=photo.content_type)
+    # За Caddy (шаг 8) — не отдаём байты сами, а просим прокси отдать файл
+    # из internal-location. Без этого is_public ничего не значит: любую
+    # обложку можно было бы скачать напрямую мимо проверки прав выше.
+    return Response(
+        media_type=photo.content_type,
+        headers={"X-Accel-Redirect": f"/internal-media/{photo.file_path}"},
+    )
 
 
 @router.get("/drafts/{draft_id}/{kind}", dependencies=[Depends(require_owner)])

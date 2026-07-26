@@ -5,10 +5,6 @@ services:
       POSTGRES_USER: library
       POSTGRES_PASSWORD: library
       POSTGRES_DB: library
-    ports:
-      # Только для локальной разработки (psql/DBeaver/тесты с хоста).
-      # В docker-compose.prod.yml (шаг 8) наружу не пробрасывается.
-      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,33 +17,21 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Без command/--reload — используется CMD из Dockerfile (без reload),
+    # это и есть безопасный прод-дефолт. Dev-режим (--reload) — в
+    # docker-compose.override.yml, подхватывается автоматически локально.
     volumes:
-      # Точечно, а не всю ./app:/code/app — иначе bind mount перекрывает
-      # app/static/{css/output.css,js/htmx.min.js}, собранные ВНУТРИ образа
-      # (на хосте их либо нет, либо лежит протухшая версия из другой сборки).
-      - ./app/main.py:/code/app/main.py
-      - ./app/config.py:/code/app/config.py
-      - ./app/database.py:/code/app/database.py
-      - ./app/dependencies.py:/code/app/dependencies.py
-      - ./app/timeutil.py:/code/app/timeutil.py
-      - ./app/models:/code/app/models
-      - ./app/routers:/code/app/routers
-      - ./app/schemas:/code/app/schemas
-      - ./app/services:/code/app/services
-      - ./app/templates:/code/app/templates
-      # PWA-ассеты (шаг 7) — реальные закоммиченные файлы, не build-артефакты
-      # вроде output.css/htmx.min.js, поэтому монтируем точечно и их тоже:
-      # правки sw.js/иконок/манифеста подхватываются без --build.
-      - ./app/static/icons:/code/app/static/icons
-      - ./app/static/manifest.json:/code/app/static/manifest.json
-      - ./app/static/js/sw.js:/code/app/static/js/sw.js
-      - ./alembic:/code/alembic
+      # Только постоянные данные. Dev-биндмаунты исходников — в
+      # docker-compose.override.yml, не здесь: этот файл общий для
+      # dev и прода, и volumes между -f файлами накапливаются, а не
+      # заменяются (проверено на docker compose config) — то, что
+      # попадёт сюда, никаким prod-оверлеем потом не уберётся.
       - ./data/photos:/code/data/photos
-    ports:
-      - "8000:8000"
     environment:
-      DEBUG: "true"
+      # false — безопасный дефолт (влияет на Secure-флаг session cookie,
+      # см. app/security.py). Локально переопределяется на true в
+      # docker-compose.override.yml.
+      DEBUG: "false"
       DATABASE_URL: "postgresql+psycopg://library:library@db:5432/library"
       PHOTO_STORAGE_ROOT: "data/photos"
       # Из окружения хоста (или корневого .env, который docker compose читает

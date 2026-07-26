@@ -135,8 +135,8 @@ home-library-catalog/
 ├── alembic/*  {env.py, versions/}
 ├── scripts/generate_pwa_icons.py
 ├── tests/{conftest.py, test_*.py}
-├── docker/app/Dockerfile, docker/nginx/*  (nginx — шаг 8)
-├── docker-compose.yml, docker-compose.prod.yml*
+├── docker/app/Dockerfile, docker/caddy/*  (Caddy — шаг 8)
+├── docker-compose.yml, docker-compose.override.yml, docker-compose.prod.yml
 ├── pyproject.toml, Makefile
 └── LICENSE, README.md, ARCHITECTURE.md, DEPLOY.md, PROCESS.md
 ```
