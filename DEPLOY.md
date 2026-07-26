@@ -92,7 +92,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
   (`docker/caddy/Dockerfile`, билд-стадия, не рантайм-зависимость).
 
 Ключевые файлы: `docker/caddy/Dockerfile`, `docker/caddy/Caddyfile` (домен
-и email для ACME — buквально текстом в файле, шаблонизация не оправдана
+и email для ACME — буквально текстом в файле, шаблонизация не оправдана
 для одного фиксированного домена; email опционален для Let's Encrypt,
 можно не указывать).
 
