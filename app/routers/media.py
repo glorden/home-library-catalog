@@ -22,12 +22,16 @@ def serve_photo(photo_id: int, session: SessionDep, current_user: CurrentUserDep
     path = photo_storage.resolve_path(photo.file_path)
     if not path.exists():
         raise HTTPException(status_code=404)
-    # За Caddy (шаг 8) — не отдаём байты сами, а просим прокси отдать файл
-    # из internal-location. Без этого is_public ничего не значит: любую
-    # обложку можно было бы скачать напрямую мимо проверки прав выше.
+    # За Caddy (шаг 8) — не отдаём байты сами, а просим прокси отдать файл.
+    # Без этого is_public ничего не значит: любую обложку можно было бы
+    # скачать напрямую мимо проверки прав выше. В Caddyfile это не
+    # отдельный внешний роут (в отличие от nginx internal;) — реагирует
+    # на заголовок только вложенный handle_response того же запроса,
+    # поэтому префикс не нужен: значение должно быть путём относительно
+    # смонтированного в Caddy /data/photos, как и есть в file_path.
     return Response(
         media_type=photo.content_type,
-        headers={"X-Accel-Redirect": f"/internal-media/{photo.file_path}"},
+        headers={"X-Accel-Redirect": f"/{photo.file_path}"},
     )
 
 

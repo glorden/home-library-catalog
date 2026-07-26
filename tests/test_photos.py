@@ -45,7 +45,7 @@ def test_upload_cover_photo_is_served(db_client, session):
     assert photo_response.headers["content-type"] == "image/jpeg"
     # Caddy (шаг 8) отдаёт сам файл по этому заголовку — TestClient его не
     # интерпретирует, поэтому здесь проверяем именно заголовок, а не байты.
-    assert photo_response.headers["x-accel-redirect"] == f"/internal-media/{photo.file_path}"
+    assert photo_response.headers["x-accel-redirect"] == f"/{photo.file_path}"
 
 
 def test_replacing_cover_photo_deletes_old_file(db_client, session):
