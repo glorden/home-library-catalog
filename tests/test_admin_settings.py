@@ -29,6 +29,16 @@ def _save(
 def test_empty_settings_form_renders(db_client):
     response = db_client.get("/admin/settings")
     assert response.status_code == 200
+    assert "Настройки сохранены" not in response.text
+
+
+def test_save_redirects_with_saved_flag_and_shows_confirmation(db_client):
+    response = _save(db_client)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/settings?saved=true"
+
+    confirmation_page = db_client.get(response.headers["location"])
+    assert "Настройки сохранены" in confirmation_page.text
 
 
 def test_create_settings_encrypts_key(db_client, session):

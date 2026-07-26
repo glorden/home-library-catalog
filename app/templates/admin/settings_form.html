@@ -6,6 +6,11 @@
         Ключ хранится в базе в зашифрованном виде и никогда не отображается — при
         обновлении настроек оставьте поле ключа пустым, чтобы не менять его.
     </p>
+    {% if saved %}
+    <div class="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+        Настройки сохранены.
+    </div>
+    {% endif %}
     <form method="post" action="/admin/settings" class="space-y-3">
         <label class="block">
             <span class="text-sm text-gray-600">Провайдер</span>

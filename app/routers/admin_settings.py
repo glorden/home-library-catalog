@@ -65,10 +65,10 @@ def _encrypt_or_422(api_key: str) -> str:
 
 
 @router.get("")
-def settings_form(request: Request, session: SessionDep):
+def settings_form(request: Request, session: SessionDep, saved: bool = False):
     credentials = _get_credentials(session)
     return templates.TemplateResponse(
-        request, "admin/settings_form.html", {"credentials": credentials}
+        request, "admin/settings_form.html", {"credentials": credentials, "saved": saved}
     )
 
 
@@ -108,4 +108,4 @@ def save_settings(data: ProviderSettingsFormDep, session: SessionDep):
         session.add(credentials)
 
     session.commit()
-    return RedirectResponse("/admin/settings", status_code=303)
+    return RedirectResponse("/admin/settings?saved=true", status_code=303)
