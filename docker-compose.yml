@@ -36,6 +36,12 @@ services:
       - ./app/schemas:/code/app/schemas
       - ./app/services:/code/app/services
       - ./app/templates:/code/app/templates
+      # PWA-ассеты (шаг 7) — реальные закоммиченные файлы, не build-артефакты
+      # вроде output.css/htmx.min.js, поэтому монтируем точечно и их тоже:
+      # правки sw.js/иконок/манифеста подхватываются без --build.
+      - ./app/static/icons:/code/app/static/icons
+      - ./app/static/manifest.json:/code/app/static/manifest.json
+      - ./app/static/js/sw.js:/code/app/static/js/sw.js
       - ./alembic:/code/alembic
       - ./data/photos:/code/data/photos
     ports:

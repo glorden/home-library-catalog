@@ -1,5 +1,7 @@
 # Каталог домашней библиотеки
 
+*[English](README.en.md) | Русский (этот файл)*
+
 Open-source каталог домашней библиотеки с упором на быструю каталогизацию
 бумажных книг — особенно советских и старых изданий без ISBN.
 
@@ -116,6 +118,6 @@ docker compose up -d
 
 ```bash
 pytest
-ruff check app tests
-ruff format --check app tests
+ruff check app tests scripts
+ruff format --check app tests scripts
 ```

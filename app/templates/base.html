@@ -4,6 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{% block title %}Каталог домашней библиотеки{% endblock %}</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" href="/static/icons/favicon.ico">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Библиотека">
     <link rel="stylesheet" href="/static/css/output.css">
     <script src="/static/js/htmx.min.js" defer></script>
 </head>
@@ -22,5 +29,12 @@
         {% endif %}
     </nav>
     {% block content %}{% endblock %}
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/sw.js");
+            });
+        }
+    </script>
 </body>
 </html>

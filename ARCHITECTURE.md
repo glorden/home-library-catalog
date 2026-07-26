@@ -82,7 +82,31 @@
       вырезала пунктуацию вместо замены на пробел, из-за чего "Толстой
       Л.Н." и "Толстой Л. Н." давали разные fingerprint — см. "Ключевые
       решения")
-- [ ] Шаг 7 — PWA
+- [x] Шаг 7 — PWA (проверено вживую: `docker compose up --build` с нуля —
+      Dockerfile корректно упаковывает иконки/манифест/`sw.js`/
+      `offline.html` без изменения самого Dockerfile, это обычные
+      закоммиченные файлы, а не build-артефакты; service worker
+      регистрируется на корневом пути `/sw.js` (не `/static/sw.js` — иначе
+      scope не покрыл бы навигации), реально активируется и переходит под
+      `clients.claim()`. Cache-first для статики подтверждён не моком, а
+      честной остановкой контейнера `app` (`docker compose stop`) — иконка
+      всё равно отдалась `200` из кэша; в это же время не-навигационный
+      запрос (как у htmx) корректно упал `Failed to fetch`, а не
+      подменился офлайн-страницей — обе половины риска №4 проверены
+      раздельно, настоящая навигация в тот же момент отдаёт закэшированный
+      `/offline.html`. После восстановления сервера — настоящий htmx-поиск
+      на витрине (`keyup` → `200` на `/?q=...`, `hx-push-url` сработал) и
+      dedup-candidates в админке (шаг 6) отработали без изменений при
+      активном SW. Версионирование кэша проверено принудительной сменой
+      `CACHE_VERSION`: старая версия и посторонний подложенный кэш
+      удаляются при `activate`, остаётся только текущая версия. 99/99
+      тестов (было 91; `tests/test_pwa.py` — манифест, обе purpose иконок,
+      geometric-проверка safe zone маскируемой иконки, favicon с тремя
+      размерами, корневой scope `sw.js`, офлайн-страница, теги в
+      `base.html`). Реальный тест "добавить на экран" с телефона по Wi-Fi
+      отложен до шага 8 — SW вне localhost требует HTTPS; критерии
+      устанавливаемости (валидный манифест, активный контролирующий SW,
+      secure context) подтверждены на localhost)
 - [ ] Шаг 8 — деплой на VPS
 
 ## Структура репозитория
@@ -105,10 +129,11 @@ home-library-catalog/
 │   │   ├── extraction/{base.py, claude_provider.py,
 │   │   │                openai_compatible_provider.py, registry.py}
 │   │   ├── photo_storage.py, crypto.py, extraction_log.py, dedup.py, search.py
-│   ├── templates/{base.html, pages/, admin/*}
-│   └── static/{css/input.css, css/output.css (сгенерирован), js/htmx.min.js (скачан),
-│                icons/*, manifest.json*, sw.js*}
+│   ├── templates/{base.html, pages/ (+ offline.html), admin/*}
+│   └── static/{css/input.css, css/output.css (сгенерирован),
+│                js/htmx.min.js (скачан), js/sw.js, icons/, manifest.json}
 ├── alembic/*  {env.py, versions/}
+├── scripts/generate_pwa_icons.py
 ├── tests/{conftest.py, test_*.py}
 ├── docker/app/Dockerfile, docker/nginx/*  (nginx — шаг 8)
 ├── docker-compose.yml, docker-compose.prod.yml*
@@ -464,25 +489,48 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
 - Rate limiting `/login` — на уровне nginx (`limit_req_zone`), без
   дополнительных Python-зависимостей.
 
-## PWA (шаг 7)
+## PWA (шаг 7) — реализовано
 
 Не offline-first (данные должны быть свежими), а устанавливаемая оболочка:
 
-- `manifest.json` (иконки 192/512 + maskable) + `apple-touch-icon`/мета-теги
-  в `base.html` (iOS не полностью следует manifest, нужен отдельный тег).
-- `sw.js`: cache-first только для статики (CSS/JS/иконки), network-first с
-  fallback на `/offline.html` для навигаций. **Критично**: перехватывать
-  только `event.request.mode === 'navigate'` — иначе SW сломает
-  htmx-фрагменты, подставляя `/offline.html` внутрь partial-ответа.
-  Версионировать `CACHE_NAME`, чистить старые кэши при `activate`.
-- Камера: `<input type="file" accept="image/*" capture="environment">` для
-  обложки/титула/оборота на форме добавления (уже используется с шага 3, PWA
-  на шаге 7 только добавляет манифест/установку/офлайн-заглушку).
-- HEIC с айфонов — `pillow-heif` на сервере. Ресайз/EXIF-strip только
-  серверный, клиентский JS для этого не нужен.
-- HTTPS обязателен для service worker вне localhost — полноценная проверка
-  возможна только после деплоя (шаг 8); базовое поведение SW тестируется на
-  localhost раньше.
+- `app/static/manifest.json` — иконки 192/512 (purpose "any") + отдельная
+  maskable 512×512 (глиф в безопасной зоне — вписанном круге радиусом 40%
+  стороны иконки — с запасом ~29%, проверено геометрически в
+  `tests/test_pwa.py`), `theme_color` = акцентный `#4f46e5` проекта (тот
+  же, что у всех кнопок `type="submit"`). `apple-touch-icon`/`icon`/
+  `manifest` ссылки и `apple-mobile-web-app-*` мета-теги — в `base.html`
+  (iOS не полностью следует manifest, нужен отдельный тег).
+- Иконки (192/512/maskable-512/apple-touch-icon/favicon.ico с тремя
+  вложенными размерами 16/32/48) генерируются локально скриптом
+  `scripts/generate_pwa_icons.py` на Pillow — без сторонних сервисов
+  генерации favicon/манифеста, тот же принцип, что уже применён к
+  `htmx.min.js` и Tailwind (см. "Ключевые решения").
+- `app/static/js/sw.js`, отдаётся роутом `GET /sw.js` **с корневого пути**
+  (не `/static/sw.js`) — scope service worker'а по умолчанию равен
+  директории, откуда он отдан; под `/static/` он не смог бы перехватывать
+  навигации на `/`, `/catalog/*` и т.д. Роут читает файл с диска на каждый
+  запрос (не кэширует в Python) — правки подхватываются без перезапуска.
+- `fetch`-обработчик — ровно две ветки, всё остальное не перехватывается
+  вообще: `request.mode === 'navigate'` → network-first с fallback на
+  закэшированный `/offline.html`; same-origin `/static/*` → cache-first.
+  **Критично** (риск №4): без проверки `request.mode` SW подставлял бы
+  `/offline.html` внутрь htmx partial-ответов — проверено вживую (см.
+  статус шага выше), htmx-поиск и dedup-candidates (шаг 6) не заметили
+  активный SW. `CACHE_NAME` версионируется (`library-shell-{версия}`),
+  `activate` удаляет все кэши с чужим именем.
+- `docker-compose.yml`: `app/static` в dev не примонтирован целиком (см.
+  "Ключевые решения", шаг 3) — `icons/`, `manifest.json` и
+  `static/js/sw.js` примонтированы точечно тем же способом, чтобы правки
+  не требовали `--build` на каждую итерацию.
+- Камера (`<input type="file" accept="image/*" capture="environment">`) и
+  HEIC с айфонов (`pillow-heif`, ресайз/EXIF-strip только серверный) —
+  сделаны на шаге 3, этот шаг их не трогал; упомянуты здесь только потому,
+  что относятся к тому же кругу "мобильных" возможностей.
+- HTTPS обязателен для service worker вне localhost — реальный тест
+  "добавить на экран" с телефона по Wi-Fi сознательно отложен до шага 8
+  (деплоя). Критерии устанавливаемости (валидный манифест, активный
+  контролирующий SW, secure context) и весь жизненный цикл SW проверены на
+  localhost.
 
 ## Риски
 
@@ -508,7 +556,13 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
    забыть про очистку незавершённых черновиков, чтобы служебные снимки не
    копились на диске.
 4. Service worker и htmx: перехват только navigation-запросов (см. PWA выше)
-   — иначе SW сломает htmx-фрагменты.
+   — иначе SW сломает htmx-фрагменты. Реализовано и проверено на шаге 7:
+   `sw.js` вызывает `respondWith` только для `request.mode === 'navigate'`
+   и `/static/*`, всё остальное уходит в сеть без вмешательства SW;
+   вживую подтверждено обеими сторонами — при остановленном сервере
+   htmx-подобный запрос падает сетевой ошибкой (а не подменяется
+   офлайн-страницей), а настоящий htmx-поиск и dedup-candidates (шаг 6)
+   работают с активным SW без изменений.
 5. Единственный админ-пароль без email-восстановления — `reset-admin-password`
    протестирован вживую на шаге 5 (CLI в контейнере + автотест на
    инвалидацию старой сессии через `session_version`), не только

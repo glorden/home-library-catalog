@@ -36,8 +36,8 @@ test:
 	pytest
 
 lint:
-	ruff check app tests
-	ruff format --check app tests
+	ruff check app tests scripts
+	ruff format --check app tests scripts
 
 fmt:
-	ruff format app tests
+	ruff format app tests scripts

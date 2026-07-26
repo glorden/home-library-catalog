@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 from sqlmodel import select
 
@@ -11,6 +12,7 @@ from app.services import search
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+SERVICE_WORKER_PATH = BASE_DIR / "static" / "js" / "sw.js"
 
 router = APIRouter()
 
@@ -62,4 +64,24 @@ def catalog_detail(edition_id: int, request: Request, session: SessionDep):
         request,
         "pages/catalog_detail.html",
         {"edition": edition, "copies": public_copies, "cover": cover},
+    )
+
+
+@router.get("/offline.html")
+def offline(request: Request):
+    # Обычный роут, не только SW-заглушка: sw.js кладёт этот же URL в кэш
+    # при install (см. app/static/js/sw.js), но страница должна отдаваться
+    # и по прямому заходу, пока сеть есть.
+    return templates.TemplateResponse(request, "pages/offline.html", {})
+
+
+@router.get("/sw.js")
+def service_worker() -> Response:
+    # Обязательно с корневого пути, а не /static/sw.js — scope service
+    # worker'а по умолчанию равен директории, откуда он отдан; под /static/
+    # он не смог бы перехватывать навигации на "/", "/catalog/*" и т.д.
+    return Response(
+        content=SERVICE_WORKER_PATH.read_text(encoding="utf-8"),
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-cache"},
     )
