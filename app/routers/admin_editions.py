@@ -8,14 +8,16 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
-from app.dependencies import SessionDep
+from app.dependencies import SessionDep, require_owner
 from app.models import Copy, Edition, Photo
 from app.timeutil import utcnow
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-router = APIRouter(prefix="/admin/editions", tags=["editions"])
+router = APIRouter(
+    prefix="/admin/editions", tags=["editions"], dependencies=[Depends(require_owner)]
+)
 
 
 @dataclass

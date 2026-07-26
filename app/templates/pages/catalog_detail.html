@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ edition.title }} — Каталог домашней библиотеки{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-3xl p-6">
+    <p class="mb-4">
+        <a href="/" class="text-sm text-gray-600 hover:underline">← Ко всем книгам</a>
+    </p>
+    <div class="mb-6 flex gap-6">
+        {% if cover %}
+        <img src="/media/photos/{{ cover.id }}" alt="{{ edition.title }}"
+             class="h-48 w-32 flex-none rounded object-cover shadow">
+        {% endif %}
+        <div>
+            <h1 class="text-xl font-semibold">{{ edition.title }}</h1>
+            {% if edition.subtitle %}<p class="text-gray-600">{{ edition.subtitle }}</p>{% endif %}
+            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-700">
+                {% if edition.authors %}<dt class="text-gray-500">Автор(ы)</dt><dd>{{ edition.authors }}</dd>{% endif %}
+                {% if edition.publisher %}<dt class="text-gray-500">Издательство</dt><dd>{{ edition.publisher }}</dd>{% endif %}
+                {% if edition.publication_year or edition.publication_year_text %}
+                    <dt class="text-gray-500">Год</dt>
+                    <dd>{{ edition.publication_year or edition.publication_year_text }}</dd>
+                {% endif %}
+                {% if edition.series %}<dt class="text-gray-500">Серия</dt><dd>{{ edition.series }}</dd>{% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <h2 class="mb-2 text-lg font-semibold">Экземпляры</h2>
+    {% set condition_labels = {"mint": "Отличное", "good": "Хорошее", "fair": "Среднее", "poor": "Плохое", "damaged": "Повреждено"} %}
+    <ul class="divide-y">
+        {% for copy in copies %}
+        <li class="py-2 text-sm text-gray-700">
+            <div class="flex flex-wrap items-center gap-2">
+                {% if copy.condition %}
+                <span>Состояние: {{ condition_labels.get(copy.condition, copy.condition) }}</span>
+                {% endif %}
+                {% if copy.has_autograph %}
+                <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">автограф</span>
+                {% endif %}
+                {% if copy.has_ex_libris %}
+                <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">экслибрис</span>
+                {% endif %}
+            </div>
+            {% if copy.public_notes %}<p class="mt-1 text-gray-600">{{ copy.public_notes }}</p>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</main>
+{% endblock %}

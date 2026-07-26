@@ -4,8 +4,9 @@ import re
 from PIL import Image
 from sqlmodel import select
 
+from app.config import settings
 from app.main import app
-from app.models import Copy, Edition, Photo
+from app.models import Copy, Edition, ExtractionCall, Photo
 from app.routers.extraction import _extraction_service_dep
 from app.schemas.extraction import ExtractedField, ExtractionResult
 from app.services import photo_storage
@@ -135,3 +136,55 @@ def test_confirm_with_malformed_draft_id_returns_404(db_client):
 def test_recognize_without_configured_provider_returns_422(db_client):
     response = db_client.post("/admin/extract/recognize", files=_photo_files())
     assert response.status_code == 422
+
+
+def test_recognize_logs_successful_call_with_tokens(db_client, session):
+    fake = FakeExtractionService(
+        result=ExtractionResult(
+            title=ExtractedField(value="Название", confidence=0.9),
+            provider_name="fake",
+            model_name="fake-model",
+            tokens_input=123,
+            tokens_output=45,
+        )
+    )
+    _use_fake_service(fake)
+
+    response = db_client.post("/admin/extract/recognize", files=_photo_files())
+    assert response.status_code == 200
+
+    call = session.exec(select(ExtractionCall)).one()
+    assert call.success is True
+    assert call.provider == "fake"
+    assert call.model_name == "fake-model"
+    assert call.image_count == 3
+    assert call.tokens_input == 123
+    assert call.tokens_output == 45
+
+
+def test_recognize_logs_failed_call(db_client, session):
+    fake = FakeExtractionService(raise_error=ExtractionError("сервис недоступен"))
+    _use_fake_service(fake)
+
+    db_client.post("/admin/extract/recognize", files=_photo_files())
+
+    call = session.exec(select(ExtractionCall)).one()
+    assert call.success is False
+    assert call.error_message == "сервис недоступен"
+
+
+def test_recognize_rejects_after_daily_limit(db_client, session, monkeypatch):
+    monkeypatch.setattr(settings, "ai_extraction_daily_limit", 1)
+    fake = FakeExtractionService(
+        result=ExtractionResult(provider_name="fake", model_name="fake-model")
+    )
+    _use_fake_service(fake)
+
+    first = db_client.post("/admin/extract/recognize", files=_photo_files())
+    assert first.status_code == 200
+
+    second = db_client.post("/admin/extract/recognize", files=_photo_files())
+    assert second.status_code == 429
+    assert "лимит" in second.text.lower()
+    # Только один реальный вызов дошёл до провайдера — второй отсечён раньше.
+    assert len(fake.calls) == 1

@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     photo_storage_root: str = "data/photos"
     settings_encryption_key: str | None = None
     enable_draft_cleanup_loop: bool = True
+    session_secret_key: str | None = None
+    showcase_public: bool = True
+    ai_extraction_daily_limit: int = 30
 
 
 settings = Settings()

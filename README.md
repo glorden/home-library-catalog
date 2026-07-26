@@ -54,6 +54,35 @@ make css      # скачивает standalone Tailwind CLI и собирает o
 Оба таргета качают файлы из интернета (unpkg.com / GitHub releases) — сначала
 проверьте содержимое `Makefile`, если это важно для вашего окружения.
 
+## Вход владельца
+
+Все `/admin/*`-роуты и AI-распознавание требуют входа. Аккаунт ровно один,
+регистрации в приложении нет — создаётся через CLI. Сгенерируйте ключ
+подписи session cookie:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Положите результат в `.env` (в корне репозитория, не коммитится):
+
+```
+SESSION_SECRET_KEY=<сгенерированное значение>
+```
+
+Пересоздайте контейнер (переменные окружения подхватываются только при
+создании, не при обычном рестарте) и создайте владельца:
+
+```bash
+docker compose up -d
+docker compose exec app python -m app.cli create-admin --email you@example.com
+```
+
+Пароль спросит интерактивно (ввод скрыт, чтобы не осел в истории шелла).
+Если пароль забыт — `docker compose exec app python -m app.cli
+reset-admin-password` (сбрасывает и все уже выданные session cookie).
+Дальше — `/login`.
+
 ## Настройка AI-провайдера
 
 Чтобы попробовать распознавание по фото (`/admin/extract/new`), нужно

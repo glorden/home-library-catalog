@@ -51,7 +51,7 @@ class OpenAICompatibleExtractionService:
     provider_name = "openai_compatible"
 
     def __init__(self, api_key: str, model_name: str, base_url: str):
-        self._model_name = model_name
+        self.model_name = model_name
         self._client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=90.0)
 
     def extract(
@@ -59,7 +59,7 @@ class OpenAICompatibleExtractionService:
     ) -> ExtractionResult:
         try:
             response = self._client.chat.completions.create(
-                model=self._model_name,
+                model=self.model_name,
                 max_tokens=4096,
                 tools=[_tool_schema()],
                 tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
@@ -72,12 +72,14 @@ class OpenAICompatibleExtractionService:
 
         choice = response.choices[0]
         usage = response.usage
+        tokens_input = getattr(usage, "prompt_tokens", None)
+        tokens_output = getattr(usage, "completion_tokens", None)
         logger.info(
             "openai-compatible extraction call: model=%s prompt_tokens=%s"
             " completion_tokens=%s finish_reason=%s",
-            self._model_name,
-            getattr(usage, "prompt_tokens", None),
-            getattr(usage, "completion_tokens", None),
+            self.model_name,
+            tokens_input,
+            tokens_output,
             choice.finish_reason,
         )
 
@@ -97,6 +99,8 @@ class OpenAICompatibleExtractionService:
         return ExtractionResult(
             **fields,
             provider_name=self.provider_name,
-            model_name=self._model_name,
+            model_name=self.model_name,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
             raw_response=tool_call.function.arguments,
         )

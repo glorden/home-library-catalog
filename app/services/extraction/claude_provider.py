@@ -49,7 +49,7 @@ class ClaudeExtractionService:
     provider_name = "claude"
 
     def __init__(self, api_key: str, model_name: str):
-        self._model_name = model_name
+        self.model_name = model_name
         self._client = anthropic.Anthropic(api_key=api_key, timeout=90.0)
 
     def extract(
@@ -57,7 +57,7 @@ class ClaudeExtractionService:
     ) -> ExtractionResult:
         try:
             response = self._client.messages.create(
-                model=self._model_name,
+                model=self.model_name,
                 max_tokens=4096,
                 tools=[_tool_schema()],
                 tool_choice={"type": "tool", "name": TOOL_NAME},
@@ -69,18 +69,22 @@ class ClaudeExtractionService:
             raise ExtractionError(f"Ошибка обращения к Claude: {exc}") from exc
 
         usage = response.usage
+        tokens_input = getattr(usage, "input_tokens", None)
+        tokens_output = getattr(usage, "output_tokens", None)
         logger.info(
             "claude extraction call: model=%s input_tokens=%s output_tokens=%s stop_reason=%s",
-            self._model_name,
-            getattr(usage, "input_tokens", None),
-            getattr(usage, "output_tokens", None),
+            self.model_name,
+            tokens_input,
+            tokens_output,
             response.stop_reason,
         )
 
         if response.stop_reason == "refusal":
             return ExtractionResult(
                 provider_name=self.provider_name,
-                model_name=self._model_name,
+                model_name=self.model_name,
+                tokens_input=tokens_input,
+                tokens_output=tokens_output,
                 warnings=["Claude отказался распознавать эти фото"],
             )
 
@@ -101,6 +105,8 @@ class ClaudeExtractionService:
         return ExtractionResult(
             **fields,
             provider_name=self.provider_name,
-            model_name=self._model_name,
+            model_name=self.model_name,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
             raw_response=str(tool_block.input),
         )

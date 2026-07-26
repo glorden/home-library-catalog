@@ -47,6 +47,9 @@ services:
       # Из окружения хоста (или корневого .env, который docker compose читает
       # сам, отдельно от app/config.py) — реальный секрет в compose-файл не кладём.
       SETTINGS_ENCRYPTION_KEY: "${SETTINGS_ENCRYPTION_KEY:-}"
+      SESSION_SECRET_KEY: "${SESSION_SECRET_KEY:-}"
+      SHOWCASE_PUBLIC: "${SHOWCASE_PUBLIC:-true}"
+      AI_EXTRACTION_DAILY_LIMIT: "${AI_EXTRACTION_DAILY_LIMIT:-30}"
     depends_on:
       db:
         condition: service_healthy

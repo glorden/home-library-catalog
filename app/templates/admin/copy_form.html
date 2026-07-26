@@ -84,6 +84,11 @@
                 Есть экслибрис
             </label>
         </div>
+        <label class="flex items-center gap-2 text-sm text-gray-600">
+            <input type="checkbox" name="is_public" value="true"
+                   {% if copy is none or copy.is_public %}checked{% endif %}>
+            Показывать на публичной витрине
+        </label>
         <div class="flex gap-2 pt-2">
             <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
                 Сохранить

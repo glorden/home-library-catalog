@@ -8,7 +8,9 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import settings
 from app.database import get_session
+from app.dependencies import require_owner
 from app.main import app
+from app.models import User
 
 TEST_DB_NAME = "library_test"
 
@@ -43,6 +45,7 @@ def _test_settings_extras(monkeypatch):
     черновиков (не нужна в тестах и мешала бы TestClient корректно завершаться)."""
     monkeypatch.setattr(settings, "settings_encryption_key", Fernet.generate_key().decode())
     monkeypatch.setattr(settings, "enable_draft_cleanup_loop", False)
+    monkeypatch.setattr(settings, "session_secret_key", "test-secret-key")
 
 
 @pytest.fixture()
@@ -64,8 +67,26 @@ def session():
 
 
 @pytest.fixture()
-def db_client(session: Session) -> TestClient:
+def auth_client(session: Session) -> TestClient:
+    """Как db_client, но БЕЗ подмены require_owner — для тестов, которые
+    сами проверяют реальный auth-флоу (login/logout/редиректы), а не просто
+    предполагают авторизованный доступ."""
     app.dependency_overrides[get_session] = lambda: session
+    test_client = TestClient(app)
+    yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def db_client(session: Session) -> TestClient:
+    """require_owner подменяется фиктивным (не сохранённым в БД) владельцем —
+    все существующие тесты и так предполагают авторизованный доступ; реальный
+    login/cookie-флоу отдельно проверяется в test_auth.py через client +
+    session напрямую, без этого override."""
+    app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[require_owner] = lambda: User(
+        id=1, email="test@example.com", password_hash="x", session_version=1
+    )
     test_client = TestClient(app)
     yield test_client
     app.dependency_overrides.clear()

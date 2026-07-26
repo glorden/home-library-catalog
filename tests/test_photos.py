@@ -3,7 +3,9 @@ import io
 from PIL import Image
 from sqlmodel import select
 
-from app.models import Copy, Photo
+from app.dependencies import get_current_user
+from app.main import app
+from app.models import Copy, Photo, User
 from app.services import photo_storage
 
 
@@ -25,7 +27,9 @@ def test_upload_cover_photo_is_served(db_client, session):
 
     response = db_client.post(
         f"/admin/editions/{edition_id}/copies",
-        data={"inventory_code": "PHOTO-001"},
+        # Как настоящий чекбокс в браузере: не отправлен — не публичен.
+        # Тестовый POST не рендерит форму, поэтому is_public нужно указать явно.
+        data={"inventory_code": "PHOTO-001", "is_public": "true"},
         files={"cover_photo": ("cover.jpg", _fake_jpeg_bytes(), "image/jpeg")},
         follow_redirects=False,
     )
@@ -94,3 +98,50 @@ def test_invalid_image_upload_returns_422(db_client):
         follow_redirects=False,
     )
     assert response.status_code == 422
+
+
+def test_private_copy_cover_hidden_from_anonymous_visitor(db_client, session):
+    edition_id = _create_edition(db_client)
+    db_client.post(
+        f"/admin/editions/{edition_id}/copies",
+        data={"inventory_code": "PHOTO-005"},
+        files={"cover_photo": ("cover.jpg", _fake_jpeg_bytes(), "image/jpeg")},
+        follow_redirects=False,
+    )
+    copy = session.exec(select(Copy).where(Copy.edition_id == edition_id)).one()
+    copy.is_public = False
+    session.add(copy)
+    session.commit()
+    photo = session.exec(select(Photo).where(Photo.copy_id == copy.id)).one()
+
+    # db_client подменяет require_owner, но не get_current_user — serve_photo
+    # видит анонимного посетителя (request.state.user is None), как и в проде.
+    response = db_client.get(f"/media/photos/{photo.id}")
+    assert response.status_code == 404
+
+
+def test_private_copy_cover_visible_to_owner(db_client, session):
+    edition_id = _create_edition(db_client)
+    db_client.post(
+        f"/admin/editions/{edition_id}/copies",
+        data={"inventory_code": "PHOTO-006"},
+        files={"cover_photo": ("cover.jpg", _fake_jpeg_bytes(), "image/jpeg")},
+        follow_redirects=False,
+    )
+    copy = session.exec(select(Copy).where(Copy.edition_id == edition_id)).one()
+    copy.is_public = False
+    session.add(copy)
+    session.commit()
+    photo = session.exec(select(Photo).where(Photo.copy_id == copy.id)).one()
+
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id=1, email="owner@example.com", password_hash="x", session_version=1
+    )
+    response = db_client.get(f"/media/photos/{photo.id}")
+    assert response.status_code == 200
+
+
+def test_draft_photo_requires_owner(client):
+    response = client.get(f"/media/drafts/{'a' * 32}/cover", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"

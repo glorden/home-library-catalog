@@ -30,12 +30,15 @@ class ExtractionResult(BaseModel):
     description: ExtractedField | None = None
     provider_name: str
     model_name: str
+    tokens_input: int | None = None
+    tokens_output: int | None = None
     raw_response: str | None = None  # только для аудита, не для показа пользователю
     warnings: list[str] = []
 
 
 class ExtractionService(Protocol):
     provider_name: str
+    model_name: str
 
     def extract(
         self, images: list[ExtractionImage], *, language_hint: str = "ru"

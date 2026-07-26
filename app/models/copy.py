@@ -36,5 +36,8 @@ class Copy(SQLModel, table=True):
     public_notes: str | None = Field(default=None)
     has_autograph: bool = Field(default=False)
     has_ex_libris: bool = Field(default=False)
+    # opt-out: по умолчанию публичен, владелец явно скрывает то, что не
+    # хочет показывать на витрине (шаг 5).
+    is_public: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

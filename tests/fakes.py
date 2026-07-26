@@ -5,6 +5,7 @@ class FakeExtractionService:
     """Подменяет реальный вызов Claude в тестах — CI никогда не должен ходить в сеть."""
 
     provider_name = "fake"
+    model_name = "fake-model"
 
     def __init__(
         self, result: ExtractionResult | None = None, raise_error: Exception | None = None

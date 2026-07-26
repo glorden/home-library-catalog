@@ -8,19 +8,22 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
-from app.dependencies import SessionDep
+from app.config import settings
+from app.dependencies import SessionDep, require_owner
 from app.models import Copy, Edition
 from app.routers.admin_copies import attach_cover_photo
 from app.routers.admin_editions import EditionFormDep
 from app.schemas.extraction import ExtractionImage, ExtractionService
-from app.services import photo_storage
+from app.services import extraction_log, photo_storage
 from app.services.extraction import registry
 from app.services.extraction.base import ExtractionError
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-router = APIRouter(prefix="/admin/extract", tags=["extraction"])
+router = APIRouter(
+    prefix="/admin/extract", tags=["extraction"], dependencies=[Depends(require_owner)]
+)
 
 
 def _extraction_service_dep(session: SessionDep) -> ExtractionService:
@@ -41,11 +44,21 @@ def new_extraction_form(request: Request):
 @router.post("/recognize")
 def recognize(
     request: Request,
+    session: SessionDep,
     service: ExtractionServiceDep,
     cover: Annotated[UploadFile, File()],
     title_page: Annotated[UploadFile, File()],
     title_verso: Annotated[UploadFile, File()],
 ):
+    if extraction_log.count_calls_today(session) >= settings.ai_extraction_daily_limit:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Дневной лимит AI-вызовов исчерпан "
+                f"({settings.ai_extraction_daily_limit}/день). Попробуйте завтра."
+            ),
+        )
+
     draft_id = secrets.token_hex(16)
     uploads = dict(zip(photo_storage.DRAFT_KINDS, (cover, title_page, title_verso), strict=True))
 
@@ -62,7 +75,28 @@ def recognize(
     try:
         result = service.extract(images, language_hint="ru")
     except ExtractionError as exc:
+        # Каждая попытка, дошедшая до провайдера, считается в дневной лимит
+        # независимо от исхода — иначе баг/цикл продолжит жечь ключ, просто
+        # не переставая логироваться.
+        extraction_log.log_call(
+            session,
+            provider=service.provider_name,
+            model_name=service.model_name,
+            image_count=len(images),
+            success=False,
+            error_message=str(exc),
+        )
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    extraction_log.log_call(
+        session,
+        provider=result.provider_name,
+        model_name=result.model_name,
+        image_count=len(images),
+        success=True,
+        tokens_input=result.tokens_input,
+        tokens_output=result.tokens_output,
+    )
 
     return templates.TemplateResponse(
         request, "admin/extraction_confirm.html", {"result": result, "draft_id": draft_id}

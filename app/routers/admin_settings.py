@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
-from app.dependencies import SessionDep
+from app.dependencies import SessionDep, require_owner
 from app.models.provider_credential import ProviderCredential, ProviderName
 from app.services import crypto
 from app.timeutil import utcnow
@@ -15,7 +15,9 @@ from app.timeutil import utcnow
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-router = APIRouter(prefix="/admin/settings", tags=["settings"])
+router = APIRouter(
+    prefix="/admin/settings", tags=["settings"], dependencies=[Depends(require_owner)]
+)
 
 SUPPORTED_PROVIDERS = {ProviderName.CLAUDE.value, ProviderName.OPENAI_COMPATIBLE.value}
 

@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
-from app.dependencies import SessionDep
+from app.dependencies import SessionDep, require_owner
 from app.models import Copy, Edition, Photo
 from app.services import photo_storage
 from app.timeutil import utcnow
@@ -17,7 +17,7 @@ from app.timeutil import utcnow
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-router = APIRouter(tags=["copies"])
+router = APIRouter(tags=["copies"], dependencies=[Depends(require_owner)])
 
 
 @dataclass
@@ -32,6 +32,7 @@ class CopyFormData:
     public_notes: str | None
     has_autograph: bool
     has_ex_libris: bool
+    is_public: bool
 
 
 def copy_form(
@@ -45,6 +46,7 @@ def copy_form(
     public_notes: str = Form(""),
     has_autograph: bool = Form(False),
     has_ex_libris: bool = Form(False),
+    is_public: bool = Form(False),
 ) -> CopyFormData:
     price = None
     if acquisition_price.strip():
@@ -63,6 +65,7 @@ def copy_form(
         public_notes=public_notes or None,
         has_autograph=has_autograph,
         has_ex_libris=has_ex_libris,
+        is_public=is_public,
     )
 
 

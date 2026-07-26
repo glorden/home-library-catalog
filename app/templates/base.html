@@ -8,6 +8,19 @@
     <script src="/static/js/htmx.min.js" defer></script>
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900">
+    <nav class="flex items-center justify-between border-b bg-white px-6 py-3 text-sm">
+        <a href="/" class="font-medium text-gray-900 hover:underline">Каталог домашней библиотеки</a>
+        {% if request.state.user %}
+        <div class="flex items-center gap-3">
+            <a href="/admin/editions" class="text-gray-600 hover:underline">Админ</a>
+            <form method="post" action="/logout">
+                <button type="submit" class="text-gray-600 hover:underline">Выйти</button>
+            </form>
+        </div>
+        {% else %}
+        <a href="/login" class="text-gray-600 hover:underline">Войти</a>
+        {% endif %}
+    </nav>
     {% block content %}{% endblock %}
 </body>
 </html>

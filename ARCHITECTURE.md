@@ -29,7 +29,35 @@
       вместо платного Claude) — покрыт только тестами схемы/парсинга;
       структура кода у обоих провайдеров идентична, реальный вызов Claude
       можно проверить в любой момент, когда появится ключ)
-- [ ] Шаг 5 — аутентификация и витрина
+- [x] Шаг 5 — аутентификация, витрина и защита AI-ключа от перерасхода
+      (проверено вживую: `docker compose up --build`, две миграции —
+      `users`+`copies.is_public` и `extraction_calls` — применены и
+      накатаны/откачены в контейнере; `create-admin`/`reset-admin-password`
+      выполнены через CLI в контейнере с реальным вводом пароля; логин →
+      доступ к `/admin/*` → логаут → повторный запрет проверены в браузере;
+      отдельно проверен htmx-нюанс — `hx-delete` на инвалидированной
+      (`reset-admin-password`) сессии вернул `200` + `HX-Redirect: /login`,
+      обычный запрос на ту же сессию — `303` на `/login`, подтверждено, что
+      `HX-Redirect` игнорируется htmx именно на 3xx (см. документацию,
+      "Ключевые решения" ниже); `is_public` на экземпляре скрывает издание
+      с витрины и отдаёт 404 на `/media/photos/{id}` анонимному
+      посетителю (владельцу — отдаёт), прямой подбор `/catalog/{id}`
+      приватного издания — тоже 404; `SHOWCASE_PUBLIC=false` закрывает
+      витрину целиком; дневной лимит AI-вызовов проверен на реальном
+      Gemini-ключе (не тестовым моком) — первый вызов прошёл и
+      залогировался в `extraction_calls` с реальными токенами, второй при
+      `AI_EXTRACTION_DAILY_LIMIT=1` отдал `429` без обращения к провайдеру;
+      61/61 тест проходит. По дороге найден и исправлен баг: чекбокс
+      `is_public` в форме экземпляра визуально снимался, но бэкенд всегда
+      сохранял `true` — `Form(True)` как дефолт парсинга ошибочно совпадал
+      с "чекбокс не пришёл", а непришедший чекбокс означает "снят", а не
+      "оставить как в модели"; исправлено на `Form(False)`, как у
+      `has_autograph`/`has_ex_libris` — дефолт "публично" живёт только в
+      `checked` шаблона, не в бэкенде. Второй найденный по дороге гэп:
+      `AI_EXTRACTION_DAILY_LIMIT` не был прокинут в `docker-compose.yml` —
+      значение из `.env` тихо игнорировалось контейнером; добавлена
+      строка `environment:` по образцу `SESSION_SECRET_KEY`/
+      `SHOWCASE_PUBLIC`)
 - [ ] Шаг 6 — поиск и дедупликация
 - [ ] Шаг 7 — PWA
 - [ ] Шаг 8 — деплой на VPS
@@ -40,20 +68,20 @@
 home-library-catalog/
 ├── .github/{workflows/ci.yml, ISSUE_TEMPLATE/, dependabot.yml, pull_request_template.md}
 ├── app/
-│   ├── main.py, config.py, database.py*, dependencies.py*, security.py*, cli.py*
-│   ├── models/*          # editions.py, copies.py, photos.py, user.py,
-│   │                      # provider_credential.py + __init__.py со ВСЕМИ импортами
+│   ├── main.py, config.py, database.py, dependencies.py, security.py, cli.py
+│   ├── models/{edition.py, copy.py, photo.py, provider_credential.py,
+│   │           user.py, extraction_call.py} + __init__.py со ВСЕМИ импортами
 │   ├── schemas/extraction.py
 │   ├── routers/
-│   │   ├── pages.py, search.py*, auth.py*                     # публичные
+│   │   ├── pages.py, search.py*, auth.py                       # публичные
 │   │   └── admin_editions.py, admin_copies.py, admin_settings.py,
 │   │       extraction.py                                      # APIRouter(prefix="/admin/...",
-│   │                                                           #   dependencies=[Depends(require_owner)] — шаг 5)
-│   ├── services/*
+│   │                                                           #   dependencies=[Depends(require_owner)] — шаг 5, готово)
+│   ├── services/
 │   │   ├── extraction/{base.py, claude_provider.py,
 │   │   │                openai_compatible_provider.py, registry.py}
-│   │   ├── photo_storage.py, crypto.py, dedup.py, search.py
-│   ├── templates/{base.html, partials/, pages/, admin/*}
+│   │   ├── photo_storage.py, crypto.py, extraction_log.py, dedup.py*, search.py*
+│   ├── templates/{base.html, pages/, admin/*}
 │   └── static/{css/input.css, css/output.css (сгенерирован), js/htmx.min.js (скачан),
 │                icons/*, manifest.json*, sw.js*}
 ├── alembic/*  {env.py, versions/}
@@ -89,7 +117,7 @@ home-library-catalog/
   Использовать `is not none`, а не `x or ''`, для числовых полей вроде
   `acquisition_price` — иначе легитимный `0` тоже превратится в пустую
   строку.
-- Публичные и защищённые роуты будут разделены на уровне `APIRouter`
+- Публичные и защищённые роуты разделены на уровне `APIRouter`
   (`dependencies=[Depends(require_owner)]` на весь роутер, не на отдельные
   функции) — см. "Аутентификация" (шаг 5).
 - `app/models/__init__.py` должен импортировать все модели — иначе Alembic
@@ -98,11 +126,11 @@ home-library-catalog/
   AI-провайдеров (`anthropic`, `openai`) — остальной код работает только
   через `ExtractionService` Protocol (шаг 4).
 - `provider_credentials` — без `user_id` (расхождение с ранним черновиком
-  этого документа): таблицы `users` ещё нет (шаг 5), а вся авторизация в
-  проекте — на уровне роутера, не строк; колонка-владелец, всегда
-  указывающая на единственную строку `users`, не давала бы поведения взамен
-  сложности. Вместо неё — глобальный partial unique index (не более одной
-  `is_active=true` строки).
+  этого документа): на момент этого решения (шаг 4) таблицы `users` ещё не
+  было, а вся авторизация в проекте — на уровне роутера, не строк;
+  колонка-владелец, всегда указывающая на единственную строку `users`, не
+  давала бы поведения взамен сложности. Вместо неё — глобальный partial
+  unique index (не более одной `is_active=true` строки).
 - Черновики фото для AI (шаг 4) — временные файлы на диске
   (`data/photos/_drafts/{draft_id}/`), не строки в `photos`: `Photo.copy_id`
   и `Copy.edition_id` — NOT NULL, `Edition.title` — NOT NULL без default, так
@@ -142,7 +170,9 @@ home-library-catalog/
 ## Модель данных (шаги 2, 4, 5, 6)
 
 **`users`** — ровно одна строка, создаётся CLI, регистрации нет:
-`id, email, password_hash (Argon2id), last_login_at, created_at/updated_at`.
+`id, email, password_hash (Argon2id), session_version (int, инкрементируется
+при reset-admin-password — инвалидирует ранее выданные session cookie),
+last_login_at, created_at/updated_at`.
 
 **`provider_credentials`** — настройки AI-провайдера (в БД, не в `.env`, так
 как idea.md хочет выбор провайдера "в настройках"):
@@ -150,6 +180,13 @@ home-library-catalog/
 api_key_encrypted (Fernet), base_url, model_name, is_active, created_at,
 updated_at` (+ частичный уникальный индекс: не более одной `is_active=true`
 строки — без `user_id`, см. "Ключевые решения").
+
+**`extraction_calls`** — лог каждой попытки AI-распознавания (шаг 5, защита
+от перерасхода): `id, created_at, provider, model_name, image_count, success,
+tokens_input, tokens_output, error_message`. Без `user_id` и без индексов —
+та же логика, что у `provider_credentials` (один пользователь, личный
+масштаб данных). Используется и для дневного лимита
+(`AI_EXTRACTION_DAILY_LIMIT`), и как аудит-лог токенов.
 
 **`editions`** (библиографическая запись), базовые поля — шаг 2:
 `id, title, subtitle, authors (свободный текст — см. риски), original_title,
@@ -278,12 +315,17 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
 (список/активация) не нужен, пока провайдеров реально используется один за
 раз; поле API-ключа в форме всегда пустое, "оставить пустым — не менять".
 
-## Аутентификация (шаг 5)
+## Аутентификация (шаг 5) — реализовано
 
 Подписанная session-cookie + одна строка в `users`, без ролей/permissions.
 
 - `app/security.py`: `create_session_cookie` / `verify_session_cookie`
-  (itsdangerous, HMAC).
+  (itsdangerous, HMAC). Подписывается не только `user_id`, но и
+  `users.session_version` (не было в исходном черновике этого раздела) —
+  без server-side хранилища сессий подписанную cookie иначе нечем отозвать
+  досрочно: `reset-admin-password` инкрементирует version, тем самым
+  инвалидируя все ранее выданные cookie сразу же, а не только через
+  30 дней естественного истечения.
 - `app/dependencies.py`: `get_current_user` (может вернуть `None`) и
   `require_owner` (кидает ошибку, если `None`).
 - Защищённые роутеры: `APIRouter(prefix="/admin/...",
@@ -292,8 +334,10 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
 - **htmx-нюанс**: обычный редирект на `/login` в ответ на htmx-запрос
   воткнётся как фрагмент внутрь страницы — сломанный UX. Нужен обработчик,
   отвечающий заголовком `HX-Redirect: /login` при `HX-Request: true` вместо
-  обычного `RedirectResponse`. Проверить точное поведение по актуальной
-  документации htmx на этом шаге, не полагаться на память.
+  обычного `RedirectResponse`. **Проверено** по актуальной документации
+  (htmx.org/headers/hx-redirect/, не по памяти): "Response headers are not
+  processed on 3xx response codes" — обработчик обязан отвечать `200` на
+  htmx-ветке, обычный `RedirectResponse(303)` для неё не подходит.
 - Пароль — Argon2id (`argon2-cffi`).
 - Bootstrap единственного аккаунта — Typer CLI: `create-admin`,
   `reset-admin-password` (восстановление без email-инфраструктуры).
@@ -327,8 +371,14 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
 1. Порог похожести для дедупа потребует подстройки на реальных данных;
    отдельно проверить дореформенную орфографию (ѣ, і, ѳ, ъ), если такие книги
    есть — нормализация не должна на них падать.
-2. AI-стоимость/лимиты — логировать вызовы (провайдер, время, токены), 429 →
-   retryable-ошибка, а не падение.
+2. AI-стоимость/лимиты — решено на шаге 5: таблица `extraction_calls`
+   логирует каждый вызов (провайдер, модель, токены, успех/ошибка), перед
+   вызовом — проверка дневного лимита (`AI_EXTRACTION_DAILY_LIMIT`, по
+   умолчанию 30), при превышении — 429 с понятным текстом вместо падения.
+   Это защита от собственного бага/цикла ("от дурака"), не от постороннего
+   — от чужого доступа защищает авторизация (см. "Аутентификация" выше);
+   жёсткий лимit трат всё равно стоит поставить в кабинете самого
+   AI-провайдера отдельно от кода.
 3. Место под фото — умеренный риск (не критичный): долговременно хранится
    только обложка на экземпляр. Но обложки всё равно невосстановимы в
    отличие от БД — бэкап вне VPS с самого начала (см. DEPLOY.md); плюс не
@@ -336,8 +386,10 @@ AI ресайзятся до `DRAFT_MAX_DIMENSION=2400` (старым титул
    копились на диске.
 4. Service worker и htmx: перехват только navigation-запросов (см. PWA выше)
    — иначе SW сломает htmx-фрагменты.
-5. Единственный админ-пароль без email-восстановления — CLI
-   `reset-admin-password` протестировать заранее, а не только спроектировать.
+5. Единственный админ-пароль без email-восстановления — `reset-admin-password`
+   протестирован вживую на шаге 5 (CLI в контейнере + автотест на
+   инвалидацию старой сессии через `session_version`), не только
+   спроектирован.
 6. **Публичная витрина — риск физической безопасности**, не только
    настройка приватности (публичный список ценных вещей, привязанный к
    личности): всегда зачищать EXIF/GPS на сервере у любого фото;

@@ -16,7 +16,9 @@ VPS); до тех пор часть команд ниже не проверен�
 | `DEBUG` | 1 | режим отладки FastAPI/uvicorn |
 | `DATABASE_URL` | 2 | строка подключения к Postgres |
 | `SETTINGS_ENCRYPTION_KEY` | 4 | ключ Fernet для шифрования API-ключей AI-провайдеров |
+| `SESSION_SECRET_KEY` | 5 | ключ подписи session cookie (itsdangerous, HMAC) |
 | `SHOWCASE_PUBLIC` | 5 | `true`/`false` — временно закрыть публичную витрину целиком |
+| `AI_EXTRACTION_DAILY_LIMIT` | 5 | дневной лимит вызовов AI-распознавания (по умолчанию 30) |
 
 ## Продовый Compose (план, шаг 8)
 
@@ -48,6 +50,8 @@ VPS); до тех пор часть команд ниже не проверен�
 4. `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
 5. Выпустить сертификат через Certbot-контейнер, проверить автопродление.
 6. Создать единственного пользователя: `docker compose exec app python -m app.cli create-admin --email you@example.com`.
+   Пароль забыт — `docker compose exec app python -m app.cli reset-admin-password`
+   (без email-инфраструктуры; заодно инвалидирует все ранее выданные session cookie).
 7. Проверить: домен открывается по HTTPS, публичная витрина доступна без
    входа, вход под своей учёткой открывает добавление книг.
 8. Настроить бэкапы (см. выше) и убедиться, что они реально доезжают за
