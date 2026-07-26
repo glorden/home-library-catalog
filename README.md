@@ -17,7 +17,7 @@ AI-сервис → проверить и подтвердить → сохра�
 - Backend: FastAPI
 - База данных: PostgreSQL + SQLModel + Alembic
 - Frontend: Jinja2 + htmx + Tailwind CSS (без React, без Node/npm)
-- Инфраструктура: Docker Compose, nginx, Certbot
+- Инфраструктура: Docker Compose, Caddy
 - Мобильный доступ: PWA (тот же веб, устанавливаемый на телефон)
 
 Технические детали — в [ARCHITECTURE.md](ARCHITECTURE.md).

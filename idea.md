@@ -29,7 +29,7 @@
 -   ORM: SQLAlchemy / SQLModel
 -   Миграции: Alembic
 -   Frontend: Jinja2 + htmx + Tailwind CSS
--   Инфраструктура: Docker Compose, nginx, Certbot
+-   Инфраструктура: Docker Compose, Caddy
 -   Хранение фотографий: локальный volume
 -   Репозиторий: GitHub
 

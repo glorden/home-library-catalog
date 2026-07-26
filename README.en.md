@@ -16,7 +16,7 @@ More on the idea — in [idea.md](idea.md) (in Russian).
 - Backend: FastAPI
 - Database: PostgreSQL + SQLModel + Alembic
 - Frontend: Jinja2 + htmx + Tailwind CSS (no React, no Node/npm)
-- Infrastructure: Docker Compose, nginx, Certbot
+- Infrastructure: Docker Compose, Caddy
 - Mobile access: PWA (the same web app, installable on a phone)
 
 Technical details — in [ARCHITECTURE.md](ARCHITECTURE.md) (in Russian).
