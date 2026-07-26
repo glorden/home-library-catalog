@@ -3,6 +3,11 @@ from app.schemas.extraction import ExtractedField
 TOOL_NAME = "record_bibliographic_data"
 TOOL_DESCRIPTION = "Записать распознанные библиографические данные книги."
 
+# Общий таймаут обоих провайдеров — вынесен сюда, а не дублируется как
+# магическое число, потому что появилась третья точка использования
+# (сборка прокси-клиента в registry.py, см. DEPLOY.md, шаг 9).
+EXTRACTION_HTTP_TIMEOUT_SECONDS = 90.0
+
 # Поля Edition (кроме id/created_at/updated_at) — держать в синхроне с app/schemas/extraction.py
 FIELDS: dict[str, str] = {
     "title": "Название книги, как напечатано на обложке/титуле",

@@ -8,6 +8,27 @@ services:
 
   app:
     restart: unless-stopped
+    environment:
+      # Пусто по умолчанию — вызовы идут напрямую. Непусто только если прод
+      # геолоцирован в стране, исключённой из supported-countries у
+      # AI-вендора (см. DEPLOY.md, шаг 9); сервис ai-proxy ниже.
+      AI_PROXY_URL: "${AI_PROXY_URL:-}"
+    depends_on:
+      - ai-proxy
+
+  # SOCKS5-туннель наружу для вызовов Claude/Gemini — см. DEPLOY.md, шаг 9.
+  # Ничего не публикует наружу (нет ports:), виден только сиблинг-контейнерам
+  # по compose-сети. Секреты — в secrets/, не коммитятся (см. .gitignore).
+  ai-proxy:
+    build:
+      context: docker/ai-proxy
+    restart: unless-stopped
+    environment:
+      TUNNEL_SSH_HOST: "${AI_PROXY_SSH_HOST:?}"
+      TUNNEL_SSH_USER: "${AI_PROXY_SSH_USER:-tunneluser}"
+    volumes:
+      - ./secrets/ai_proxy_id_ed25519:/keys/id_ed25519:ro
+      - ./secrets/ai_proxy_known_hosts:/keys/known_hosts:ro
 
   caddy:
     build:

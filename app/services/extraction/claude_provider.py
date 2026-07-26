@@ -2,9 +2,11 @@ import base64
 import logging
 
 import anthropic
+import httpx
 
 from app.schemas.extraction import ExtractionImage, ExtractionResult
 from app.services.extraction.base import (
+    EXTRACTION_HTTP_TIMEOUT_SECONDS,
     KIND_LABELS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
@@ -48,9 +50,11 @@ def _build_content(images: list[ExtractionImage], language_hint: str) -> list[di
 class ClaudeExtractionService:
     provider_name = "claude"
 
-    def __init__(self, api_key: str, model_name: str):
+    def __init__(self, api_key: str, model_name: str, http_client: httpx.Client | None = None):
         self.model_name = model_name
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=90.0)
+        self._client = anthropic.Anthropic(
+            api_key=api_key, timeout=EXTRACTION_HTTP_TIMEOUT_SECONDS, http_client=http_client
+        )
 
     def extract(
         self, images: list[ExtractionImage], *, language_hint: str = "ru"

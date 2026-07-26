@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     session_secret_key: str | None = None
     showcase_public: bool = True
     ai_extraction_daily_limit: int = 30
+    ai_proxy_url: str | None = None
 
 
 settings = Settings()

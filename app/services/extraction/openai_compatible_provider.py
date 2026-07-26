@@ -2,10 +2,12 @@ import base64
 import json
 import logging
 
+import httpx
 import openai
 
 from app.schemas.extraction import ExtractionImage, ExtractionResult
 from app.services.extraction.base import (
+    EXTRACTION_HTTP_TIMEOUT_SECONDS,
     KIND_LABELS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
@@ -50,9 +52,20 @@ class OpenAICompatibleExtractionService:
 
     provider_name = "openai_compatible"
 
-    def __init__(self, api_key: str, model_name: str, base_url: str):
+    def __init__(
+        self,
+        api_key: str,
+        model_name: str,
+        base_url: str,
+        http_client: httpx.Client | None = None,
+    ):
         self.model_name = model_name
-        self._client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=90.0)
+        self._client = openai.OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=EXTRACTION_HTTP_TIMEOUT_SECONDS,
+            http_client=http_client,
+        )
 
     def extract(
         self, images: list[ExtractionImage], *, language_hint: str = "ru"
