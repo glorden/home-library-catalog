@@ -3,23 +3,24 @@
 <main class="mx-auto max-w-2xl p-6">
     <h1 class="mb-1 text-xl font-semibold">Добавить книгу по фото</h1>
     <p class="mb-4 text-sm text-gray-500">
-        Сфотографируйте обложку, титульный лист и оборот титульного листа — AI предзаполнит
-        карточку издания, поля можно будет поправить перед сохранением.
+        Сфотографируйте обложку — AI предзаполнит карточку издания. Титульный лист и
+        его оборот необязательны, но повышают точность распознавания. Поля можно
+        будет поправить перед сохранением.
     </p>
     <form method="post" action="/admin/extract/recognize" enctype="multipart/form-data" class="space-y-3">
         <label class="block">
             <span class="text-sm text-gray-600">Обложка</span>
-            <input type="file" name="cover" accept="image/*" capture="environment" required
+            <input type="file" name="cover" accept="image/*" required
                    class="mt-1 w-full text-sm">
         </label>
         <label class="block">
-            <span class="text-sm text-gray-600">Титульный лист</span>
-            <input type="file" name="title_page" accept="image/*" capture="environment" required
+            <span class="text-sm text-gray-600">Титульный лист <span class="text-gray-400">(необязательно)</span></span>
+            <input type="file" name="title_page" accept="image/*"
                    class="mt-1 w-full text-sm">
         </label>
         <label class="block">
-            <span class="text-sm text-gray-600">Оборот титульного листа</span>
-            <input type="file" name="title_verso" accept="image/*" capture="environment" required
+            <span class="text-sm text-gray-600">Оборот титульного листа <span class="text-gray-400">(необязательно)</span></span>
+            <input type="file" name="title_verso" accept="image/*"
                    class="mt-1 w-full text-sm">
         </label>
         <div class="flex gap-2 pt-2">

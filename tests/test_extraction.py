@@ -64,6 +64,52 @@ def test_recognize_prefills_confirmation_form_and_handles_null_value(db_client):
     assert len(fake.calls[0]) == 3
 
 
+def test_recognize_accepts_cover_only(db_client, session):
+    # Титульный лист и оборот необязательны — форма и бэкенд должны принять
+    # запрос, где эти поля вовсе не пришли (например, клиент их не приложил).
+    fake = FakeExtractionService(
+        result=ExtractionResult(
+            title=ExtractedField(value="Только обложка", confidence=0.9),
+            provider_name="fake",
+            model_name="fake-model",
+        )
+    )
+    _use_fake_service(fake)
+
+    files = {"cover": ("cover.jpg", _fake_jpeg_bytes(), "image/jpeg")}
+    response = db_client.post("/admin/extract/recognize", files=files)
+
+    assert response.status_code == 200
+    assert len(fake.calls) == 1
+    assert [image.kind for image in fake.calls[0]] == ["cover"]
+    # Превью недостающих фото не должно рендериться (иначе — битая картинка,
+    # 404 на /media/drafts/{id}/title_page).
+    assert "title_page" not in response.text
+    assert "title_verso" not in response.text
+
+    call = session.exec(select(ExtractionCall)).one()
+    assert call.image_count == 1
+
+
+def test_recognize_treats_empty_optional_file_input_as_absent(db_client):
+    # Настоящий браузер для незаполненного необязательного <input type=file>
+    # всё равно шлёт часть формы, но с пустым filename — а не пропускает поле.
+    fake = FakeExtractionService(
+        result=ExtractionResult(provider_name="fake", model_name="fake-model")
+    )
+    _use_fake_service(fake)
+
+    files = {
+        "cover": ("cover.jpg", _fake_jpeg_bytes(), "image/jpeg"),
+        "title_page": ("", b"", "application/octet-stream"),
+        "title_verso": ("", b"", "application/octet-stream"),
+    }
+    response = db_client.post("/admin/extract/recognize", files=files)
+
+    assert response.status_code == 200
+    assert [image.kind for image in fake.calls[0]] == ["cover"]
+
+
 def test_confirm_saves_user_edits_and_keeps_only_cover_photo(db_client, session):
     fake = FakeExtractionService(
         result=ExtractionResult(

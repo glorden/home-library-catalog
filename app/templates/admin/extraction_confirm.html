@@ -31,8 +31,12 @@
 
     <div class="mb-4 flex gap-3">
         <img src="/media/drafts/{{ draft_id }}/cover" alt="Обложка" class="h-32 w-24 rounded object-cover">
+        {% if "title_page" in draft_kinds %}
         <img src="/media/drafts/{{ draft_id }}/title_page" alt="Титульный лист" class="h-32 w-24 rounded object-cover">
+        {% endif %}
+        {% if "title_verso" in draft_kinds %}
         <img src="/media/drafts/{{ draft_id }}/title_verso" alt="Оборот титула" class="h-32 w-24 rounded object-cover">
+        {% endif %}
     </div>
 
     <form method="post" action="/admin/extract/{{ draft_id }}/confirm" class="space-y-3">

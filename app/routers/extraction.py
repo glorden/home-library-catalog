@@ -46,8 +46,8 @@ def recognize(
     session: SessionDep,
     service: ExtractionServiceDep,
     cover: Annotated[UploadFile, File()],
-    title_page: Annotated[UploadFile, File()],
-    title_verso: Annotated[UploadFile, File()],
+    title_page: Annotated[UploadFile | None, File()] = None,
+    title_verso: Annotated[UploadFile | None, File()] = None,
 ):
     if extraction_log.count_calls_today(session) >= settings.ai_extraction_daily_limit:
         raise HTTPException(
@@ -59,7 +59,13 @@ def recognize(
         )
 
     draft_id = secrets.token_hex(16)
-    uploads = dict(zip(photo_storage.DRAFT_KINDS, (cover, title_page, title_verso), strict=True))
+    # Титульный лист и оборот необязательны — при пустом <input> браузер всё равно
+    # шлёт часть формы, но с пустым filename, поэтому проверяем именно его (тот же
+    # приём, что и для cover_photo в admin_copies.py).
+    candidates = zip(photo_storage.DRAFT_KINDS, (cover, title_page, title_verso), strict=True)
+    uploads = {
+        kind: upload for kind, upload in candidates if upload is not None and upload.filename
+    }
 
     try:
         for kind, upload in uploads.items():
@@ -98,7 +104,9 @@ def recognize(
     )
 
     return templates.TemplateResponse(
-        request, "admin/extraction_confirm.html", {"result": result, "draft_id": draft_id}
+        request,
+        "admin/extraction_confirm.html",
+        {"result": result, "draft_id": draft_id, "draft_kinds": list(uploads.keys())},
     )
 
 
