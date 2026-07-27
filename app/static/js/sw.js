@@ -22,9 +22,14 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Только навигации: иначе SW подменит офлайн-страницей htmx-фрагменты
+  // Только GET-навигации: иначе SW подменит офлайн-страницей htmx-фрагменты
   // (partial-ответы hx-get/hx-select и т.п.), а не только полные переходы.
-  if (request.mode === "navigate") {
+  // POST-навигации (форма распознавания фото и т.п., mode тоже "navigate")
+  // намеренно не перехватываем: offline-фолбэк для них бессмысленен (файлы
+  // уже не переотправить), а .catch() на упавший fetch тихо подменял бы
+  // страницу результата офлайн-страницей — выглядело бы так, будто кнопка
+  // ничего не делает.
+  if (request.mode === "navigate" && request.method === "GET") {
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
