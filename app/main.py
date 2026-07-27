@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -42,7 +43,23 @@ async def lifespan(fastapi_app: FastAPI):
         task.cancel()
 
 
+def _configure_logging() -> None:
+    # Без хендлера logger.info(...) в app/services/extraction/*_provider.py
+    # никуда не попадают: запись доходит до root без обработчиков и
+    # отбрасывается lastResort'ом (у него самого уровень WARNING) — проверено
+    # вживую на проде во время реальных вызовов, см. ARCHITECTURE.md, шаг 9.
+    # Настраиваем только неймспейс "app" (не root), чтобы не потащить
+    # DEBUG/INFO-шум сторонних библиотек (httpx, openai и т.п.) — их уровень
+    # не меняется.
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(logging.INFO)
+    app_logger.addHandler(handler)
+
+
 def create_app() -> FastAPI:
+    _configure_logging()
     fastapi_app = FastAPI(title="Каталог домашней библиотеки", lifespan=lifespan)
     fastapi_app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
     fastapi_app.include_router(pages.router)

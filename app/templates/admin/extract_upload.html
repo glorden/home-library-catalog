@@ -7,7 +7,7 @@
         его оборот необязательны, но повышают точность распознавания. Поля можно
         будет поправить перед сохранением.
     </p>
-    <form method="post" action="/admin/extract/recognize" enctype="multipart/form-data" class="space-y-3">
+    <form id="recognize-form" method="post" action="/admin/extract/recognize" enctype="multipart/form-data" class="space-y-3">
         <label class="block">
             <span class="text-sm text-gray-600">Обложка</span>
             <input type="file" name="cover" accept="image/*" required
@@ -24,7 +24,7 @@
                    class="mt-1 w-full text-sm">
         </label>
         <div class="flex gap-2 pt-2">
-            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+            <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60">
                 Распознать
             </button>
             <a href="/admin/editions" class="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100">
@@ -33,4 +33,11 @@
         </div>
     </form>
 </main>
+<script>
+    document.getElementById("recognize-form").addEventListener("submit", (event) => {
+        const button = event.target.querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = "Распознаём…";
+    });
+</script>
 {% endblock %}
