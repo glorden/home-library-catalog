@@ -8,6 +8,7 @@ import openai
 from app.schemas.extraction import ExtractionImage, ExtractionResult
 from app.services.extraction.base import (
     EXTRACTION_HTTP_TIMEOUT_SECONDS,
+    EXTRACTION_MAX_TOKENS,
     KIND_LABELS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
@@ -73,7 +74,7 @@ class OpenAICompatibleExtractionService:
         try:
             response = self._client.chat.completions.create(
                 model=self.model_name,
-                max_tokens=4096,
+                max_tokens=EXTRACTION_MAX_TOKENS,
                 tools=[_tool_schema()],
                 tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
                 messages=[{"role": "user", "content": _build_content(images, language_hint)}],
