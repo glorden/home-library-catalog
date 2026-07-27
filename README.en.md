@@ -5,9 +5,10 @@
 An open-source home library catalog focused on fast cataloging of paper
 books — especially Soviet-era and old editions without an ISBN.
 
-Main flow: photograph the cover, title page, and title-page verso → get
-structured bibliographic data back from your chosen AI service → review and
-confirm → save. AI never writes to the database without user confirmation.
+Main flow: photograph the cover (the title page and its verso are optional,
+for better recognition accuracy) → get structured bibliographic data back
+from your chosen AI service → review and confirm → save. AI never writes to
+the database without user confirmation.
 
 More on the idea — in [idea.md](idea.md) (in Russian).
 
