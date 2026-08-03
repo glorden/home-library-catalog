@@ -23,6 +23,7 @@ Open-source каталог домашней библиотеки с упором
 Технические детали — в [ARCHITECTURE.md](ARCHITECTURE.md).
 Деплой на VPS — в [DEPLOY.md](DEPLOY.md).
 Процесс разработки (ветки, CI, лейблы) — в [PROCESS.md](PROCESS.md).
+Журнал изменений — в [CHANGELOG.md](CHANGELOG.md).
 
 ## Быстрый старт (разработка)
 

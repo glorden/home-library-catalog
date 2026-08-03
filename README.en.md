@@ -24,6 +24,7 @@ Technical details — in [ARCHITECTURE.md](ARCHITECTURE.md) (in Russian).
 VPS deployment — in [DEPLOY.md](DEPLOY.md) (in Russian).
 Development process (branches, CI, labels) — in [PROCESS.md](PROCESS.md)
 (in Russian).
+Changelog — in [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick start (development)
 
